@@ -1,0 +1,40 @@
+name: Bug report
+description: Report a reproducible problem using synthetic or redacted files.
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: "For vulnerabilities, use the private reporting instructions in SECURITY.md instead of this public form. Never attach confidential Office files."
+  - type: input
+    id: version
+    attributes:
+      label: Office MCP version
+      placeholder: e.g. 0.9.3
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: OS, Node.js, and Office/LibreOffice versions
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Use synthetic or redacted inputs and include the tool name and arguments.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior and sanitized error output
+    validations:
+      required: true

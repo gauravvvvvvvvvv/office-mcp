@@ -1,0 +1,66 @@
+{
+  "name": "office-mcp",
+  "version": "0.9.3",
+  "description": "Local-first MCP server for creating, inspecting, and editing Microsoft Office files.",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "office-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "native",
+    "skills",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc",
+    "prepack": "npm run check",
+    "start": "node dist/index.js",
+    "test": "node --import tsx --test tests/**/*.test.ts",
+    "test:native": "node --import tsx --test tests/native.integration.ts",
+    "smoke": "npm run build && tsx src/smoke-client.ts",
+    "check": "npm run typecheck && npm test && npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "excel",
+    "word",
+    "powerpoint",
+    "office"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "^2.2.0",
+    "docx": "^9.8.1",
+    "exceljs": "^4.4.0",
+    "fast-xml-parser": "^5.11.2",
+    "jszip": "^3.10.2",
+    "pptxgenjs": "^4.0.1",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "^2.2.0",
+    "@types/node": "^26.6.3",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  },
+  "overrides": {
+    "exceljs": {
+      "uuid": "^11.1.1"
+    },
+    "pptxgenjs": {
+      "image-size": "^2.0.3"
+    }
+  },
+  "bundledDependencies": [
+    "exceljs",
+    "pptxgenjs"
+  ]
+}

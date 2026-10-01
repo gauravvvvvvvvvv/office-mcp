@@ -1,0 +1,41 @@
+name: GitHub Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Verify tag matches package version
+        run: |
+          version=$(node -p "require('./package.json').version")
+          test "$GITHUB_REF_NAME" = "v${version}"
+      - run: npm ci
+      - run: npm run check
+      - run: npm run smoke
+      - name: Build and verify distributable
+        run: |
+          mkdir -p work/pack
+          npm pack --pack-destination work/pack
+          version=$(node -p "require('./package.json').version")
+          npm install --prefix work/package-smoke "./work/pack/office-mcp-${version}.tgz"
+          node --import tsx tests/package.smoke.ts
+          npm audit --prefix work/package-smoke --omit=dev --audit-level=moderate
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(node -p "require('./package.json').version")
+          asset="work/pack/office-mcp-${version}.tgz"
+          sha256sum "$asset" > "${asset}.sha256"
+          gh release create "$GITHUB_REF_NAME" "$asset" "${asset}.sha256" --generate-notes --verify-tag
