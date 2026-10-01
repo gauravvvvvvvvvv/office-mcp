@@ -262,13 +262,11 @@ npm run dev
 
 The process waits silently for MCP messages on standard input. Do not write logs to standard output because stdout carries the MCP protocol. Diagnostics belong on stderr.
 
-## Open-source releases
+## Manual releases
 
-The repository is ready for public GitHub hosting. Pull requests run portable tests and a fresh packaged-install check on GitHub Actions. A pushed tag matching `v` plus `package.json`'s version creates a GitHub Release with a tested `.tgz` asset. This is a local stdio server: a GitHub Release distributes it; there is no hosted Office service to deploy. The native Office integration test must also be run by a maintainer on Windows with desktop Office before native-facing releases.
+This repository has no GitHub Actions workflows or Dependabot configuration. Nothing runs automatically on pushes or pull requests, and pushing a tag does not create a release or publish to npm. It is a local stdio server, not a hosted Office service.
 
-Before the first public release, enable private vulnerability reporting and review the security policy. The workflow does **not** publish to npm. If npm publication is wanted later, confirm an available package name and configure an [npm trusted publisher](https://docs.npmjs.com/trusted-publishers/) for the exact GitHub repository and workflow. Do not add a long-lived npm token to this project. The package bundles patched transitive dependencies; verify a fresh install and audit it before each release.
-
-To prepare a release, update `package.json` and lockfile, run `npm run check`, `npm run smoke`, and (where available) `npm run test:native`, then commit and push a matching `vX.Y.Z` tag. See [CONTRIBUTING.md](CONTRIBUTING.md) for development expectations and [SECURITY.md](SECURITY.md) for private reporting.
+Before making a public release manually, update `package.json` and the lockfile; run `npm run check` and `npm run smoke`; and, on Windows with desktop Office, run `npm run test:native`. Verify a fresh packaged install and audit the bundled dependencies. Then decide whether to create a GitHub Release and attach the tested package. See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md). No npm publication is currently configured.
 
 Project layout:
 
