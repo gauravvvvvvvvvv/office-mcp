@@ -8,6 +8,53 @@ Office MCP gives an orchestrating AI deterministic handles for Microsoft Office.
 
 The server does not decide what a report, model, or presentation should say. The model plans the work and calls these tools to inspect inputs, construct the documents, render the result, visually review it, and iterate.
 
+## Quick start (Windows PowerShell)
+
+You need [Node.js 20+](https://nodejs.org/), Git, and an MCP client such as Codex/ChatGPT desktop or Claude Code. Desktop Microsoft Office is **optional** for basic `.xlsx`, `.docx`, and `.pptx` file creation; it is required for Windows-native features such as animations and PowerPoint rendering. This repository is not yet published on npm.
+
+1. Download and build the server:
+
+   ```powershell
+   git clone https://github.com/gauravvvvvvvvvv/office-mcp.git
+   Set-Location office-mcp
+   npm ci
+   npm run build
+   ```
+
+2. In the **same PowerShell window**, choose which files the AI may access and connect **one** client. This example allows your Documents folder; change `$allowed` to a narrower folder if you prefer:
+
+   ```powershell
+   $entry = (Resolve-Path .\dist\index.js).Path
+   $allowed = (Resolve-Path ([Environment]::GetFolderPath('MyDocuments'))).Path
+   ```
+
+   For **Codex CLI or ChatGPT desktop**, run:
+
+   ```powershell
+   codex mcp add office --env "OFFICE_MCP_ROOTS=$allowed" -- node $entry
+   codex mcp list
+   ```
+
+   For **Claude Code**, run instead:
+
+   ```powershell
+   claude mcp add --scope user --env "OFFICE_MCP_ROOTS=$allowed" --transport stdio office -- node $entry
+   claude mcp get office
+   ```
+
+3. Restart an already-open desktop client or start a new chat. Ask: “Call `office_capabilities` and tell me which Office features are available.” Then try: “Use `powerpoint_create_designed_presentation` to create a two-slide presentation in my Documents folder, inspect it, and report the saved path.” The server runs when the client launches it; do **not** start `node dist/index.js` in a separate terminal.
+
+If you use both clients, run both registration commands. Existing `office` entries should be checked before re-adding them; `codex mcp list` and `claude mcp get office` show what is already configured. The checkout must remain at this path, because the clients launch its compiled `dist/index.js`. See [other platforms and clients](#other-platforms-and-clients) or [troubleshooting](#installation-troubleshooting) below.
+
+## Why this server
+
+- Hybrid operation: portable Office-file creation and inspection without desktop Office, plus native Windows Office operations when installed.
+- Prompt-specific quality contracts, file comparisons, render evidence, and a finalization gate that refuses stale or incomplete review.
+- PowerPoint generation that stays in the background by default; it does not repeatedly steal focus from the user's work.
+- Bounded filesystem roots, explicit overwrite behavior, and no arbitrary COM execution tool.
+
+These are design choices, not proof that this project is more capable or produces better-looking documents than every alternative. Its 34-tool surface is intentionally bounded; a human-quality result still depends on the orchestrating model, source material, and visual review.
+
 ## What works
 
 | Application | Operations |
@@ -71,16 +118,16 @@ Microsoft Office does not need to be installed for the portable file operations.
 
 The portable path edits document files, whether or not they are open in an Office application. It does not control an open Office window. Only Windows native automation can operate on the active document, add PowerPoint animations, use Excel's calculation engine, or render slides through PowerPoint. This is a local stdio server, not a hosted service: its client must be able to launch the Node.js process and access the allowed files.
 
-## Install and verify
+## Verify a development checkout
+
+These commands are for contributors and maintainers, **not** required to install the server:
 
 ```powershell
-npm install
 npm run check
 npm run smoke
-npm run test:native
 ```
 
-`npm run check` performs strict TypeScript checking, runs the portable Office integration tests, and builds `dist/`. `npm run smoke` launches the compiled server through a real MCP client and creates a designed test deck. `npm run test:native` exercises installed Microsoft Office, including a native Excel chart and PivotTable, PowerPoint rendering, and saved animations and transitions.
+`npm run check` type-checks, runs the portable integration tests, and builds `dist/`. `npm run smoke` launches the compiled server through an MCP client and creates a test deck. On Windows with desktop Microsoft Office installed, `npm run test:native` additionally tests native Excel, Word, and PowerPoint behavior. Do not run that native test on a machine without Office.
 
 ## One-prompt workflow
 
@@ -136,60 +183,54 @@ On Windows with installed desktop PowerPoint, `powerpoint_native_batch` can appl
 
 This is an expanding, validated Office capability set, not a wrapper around every Office command. Arbitrary COM execution is intentionally not exposed. Animation playback itself is not captured by the static PNG renderer.
 
-## Connect an MCP client
+## Other platforms and clients
 
-Run `npm ci` and `npm run build` first. Keep the checkout and its `dist/` directory in place after configuring a client. In every example below, replace the paths with absolute paths on your own computer, and restrict `OFFICE_MCP_ROOTS` to directories you want the AI to access.
+The [quick start](#quick-start-windows-powershell) is the shortest route for Windows. The same built server works with any local stdio MCP client that can launch Node.js. Client configuration is separate: adding Office MCP to Codex does not automatically add it to Claude Code.
 
-### ChatGPT desktop app, Codex CLI, and Codex IDE extension
+### Codex and ChatGPT desktop
 
-These clients share the same Codex MCP configuration. Add this to your user-level `~/.codex/config.toml` (or use ChatGPT desktop **Settings → MCP servers → Add server**, select **STDIO**, and enter the same command and environment):
-
-```toml
-[mcp_servers.office]
-command = "node"
-args = ["C:\\absolute\\path\\to\\office-mcp\\dist\\index.js"]
-cwd = "C:\\absolute\\path\\to\\office-mcp"
-required = true
-startup_timeout_sec = 20
-tool_timeout_sec = 120
-
-[mcp_servers.office.env]
-OFFICE_MCP_ROOTS = "C:\\absolute\\path\\to\\your\\documents"
-```
-
-Then verify the connection and restart the desktop app or IDE extension if it was already open:
-
-```powershell
-codex mcp list
-```
-
-In ChatGPT desktop, type `/mcp` to inspect connected servers. ChatGPT web does **not** read local Codex MCP configuration; a hosted plugin or remote MCP deployment is a separate integration and is not provided by this repository. See the current [Codex configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference) and [MCP guide](https://learn.chatgpt.com/docs/extend/mcp?surface=app).
+The `codex mcp add` command in the quick start writes Codex's user configuration, which the ChatGPT desktop app, Codex CLI, and Codex IDE extension share. In ChatGPT desktop, restart after adding the server and type `/mcp` to inspect it. You can also add it through **Settings → MCP servers → Add server → STDIO**. ChatGPT web does **not** read local Codex configuration; this repository does not provide a hosted MCP endpoint. See [OpenAI's MCP guide](https://learn.chatgpt.com/docs/extend/mcp?surface=app).
 
 ### Claude Code
 
-Claude Code maintains its own MCP configuration. For a personal server available across your projects on Windows, run this from PowerShell after replacing the paths:
+The quick start uses Claude Code's `user` scope, so the server is available in all your local projects. Run `claude mcp list` or use `/mcp` inside Claude Code to check its connection. See [Claude Code's MCP setup guide](https://code.claude.com/docs/en/mcp).
 
-```powershell
-claude mcp add --scope user --env 'OFFICE_MCP_ROOTS=C:\allowed\documents' --transport stdio office -- node 'C:\absolute\path\to\office-mcp\dist\index.js'
-claude mcp get office
+### macOS or Linux
+
+Portable `.xlsx`, `.docx`, and `.pptx` tools are designed for Node.js on these platforms, but this project's native Office bridge and PowerPoint PNG rendering are Windows-only. After cloning and running `npm ci` and `npm run build`, run the following from the repository root in a Bash-compatible shell; choose **one** client command:
+
+```bash
+entry="$(pwd -P)/dist/index.js"
+allowed="$(pwd -P)" # Change to a directory containing the documents you want to use.
+codex mcp add office --env "OFFICE_MCP_ROOTS=$allowed" -- node "$entry"
+# Or: claude mcp add --scope user --env "OFFICE_MCP_ROOTS=$allowed" --transport stdio office -- node "$entry"
 ```
 
-Use `claude mcp list` or `/mcp` inside Claude Code to check health. On macOS or Linux, use the corresponding absolute paths and remember that the Windows-only native tools will be unavailable. A user-scoped entry is private to your account; do not commit machine-specific paths or allowed roots to the repository. See [Claude Code's MCP setup guide](https://code.claude.com/docs/en/mcp).
+The default example grants access only to the repository. Set `allowed` to an absolute documents directory if your files live elsewhere. Restart the client, check its MCP connection, and call `office_capabilities`.
 
 ### Other local MCP clients
 
-Any client that can launch a local stdio MCP process can use the same server. Adapt this process definition to the client's configuration format:
+Configure a stdio server with `node` as the command, the absolute path to `dist/index.js` as its argument, and `OFFICE_MCP_ROOTS` as an environment variable. For example, adapt this JSON to your client's format (the paths shown are placeholders):
 
 ```json
 {
   "command": "node",
   "args": ["C:\\absolute\\path\\to\\office-mcp\\dist\\index.js"],
-  "cwd": "C:\\absolute\\path\\to\\office-mcp",
-  "env": {
-    "OFFICE_MCP_ROOTS": "C:\\allowed\\documents"
-  }
+  "env": { "OFFICE_MCP_ROOTS": "C:\\allowed\\documents" }
 }
 ```
+
+### Installation troubleshooting
+
+| Symptom | Check |
+| --- | --- |
+| `node` or `npm` is not recognized | Install Node.js 20+ and open a new terminal; run `node --version` and `npm --version`. |
+| `codex` or `claude` is not recognized | Install the corresponding client CLI, or use that client's graphical MCP settings. |
+| Client says the server cannot start | Run `npm run build`; check that `dist/index.js` exists and that the configured path still points to this checkout. Do not expect a standalone `node dist/index.js` process to print a success message; it waits for MCP input. |
+| `office` already exists | Inspect the existing entry with `codex mcp list` or `claude mcp get office`; don't create a duplicate. If you intend to replace it, remove the old entry in that same client and rerun the setup command. |
+| A file is rejected as outside allowed roots | Set `OFFICE_MCP_ROOTS` to an absolute parent folder containing that file, then restart the client. Multiple Windows roots use `;`; macOS/Linux roots use `:`. |
+| Native animations, Excel recalculation, or PowerPoint rendering are unavailable | These require Windows and installed desktop Microsoft Office. Start by calling `office_capabilities` and `office_native_status`. |
+| ChatGPT web cannot see the server | Web chats do not load local stdio MCP configuration; use ChatGPT desktop/Codex or build a separately hosted integration. |
 
 ## Path security
 
@@ -225,7 +266,7 @@ The process waits silently for MCP messages on standard input. Do not write logs
 
 The repository is ready for public GitHub hosting. Pull requests run portable tests and a fresh packaged-install check on GitHub Actions. A pushed tag matching `v` plus `package.json`'s version creates a GitHub Release with a tested `.tgz` asset. This is a local stdio server: a GitHub Release distributes it; there is no hosted Office service to deploy. The native Office integration test must also be run by a maintainer on Windows with desktop Office before native-facing releases.
 
-Before the first public release, choose a GitHub owner and repository name, enable private vulnerability reporting, and review the security policy. The workflow does **not** publish to npm. If npm publication is wanted later, confirm an available package name and configure an [npm trusted publisher](https://docs.npmjs.com/trusted-publishers/) for the exact GitHub repository and workflow. Do not add a long-lived npm token to this project. The package bundles patched transitive dependencies; verify a fresh install and audit it before each release.
+Before the first public release, enable private vulnerability reporting and review the security policy. The workflow does **not** publish to npm. If npm publication is wanted later, confirm an available package name and configure an [npm trusted publisher](https://docs.npmjs.com/trusted-publishers/) for the exact GitHub repository and workflow. Do not add a long-lived npm token to this project. The package bundles patched transitive dependencies; verify a fresh install and audit it before each release.
 
 To prepare a release, update `package.json` and lockfile, run `npm run check`, `npm run smoke`, and (where available) `npm run test:native`, then commit and push a matching `vX.Y.Z` tag. See [CONTRIBUTING.md](CONTRIBUTING.md) for development expectations and [SECURITY.md](SECURITY.md) for private reporting.
 
