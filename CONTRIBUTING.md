@@ -5,7 +5,7 @@ Thanks for helping improve Office MCP. The project is MIT-licensed and accepts f
 ## Before you start
 
 - Search existing issues and pull requests before opening a duplicate.
-- For a new tool or breaking API change, open a feature discussion first. Explain the user task, supported Office versions, cross-platform behavior, and why the existing tools cannot express it.
+- For a new tool or breaking API change, open a feature discussion first. Explain the user task, supported Windows and Office versions, and why the existing tools cannot express it.
 - Do not submit private documents, credentials, customer data, or copyrighted templates without permission. Create synthetic fixtures instead.
 - Report security issues privately as described in [SECURITY.md](SECURITY.md).
 

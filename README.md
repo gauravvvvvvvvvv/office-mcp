@@ -1,10 +1,10 @@
 # Office MCP
 
-A local-first Model Context Protocol server for Microsoft Excel, Word, and PowerPoint files and applications.
+A Windows-first Model Context Protocol server for Microsoft Excel, Word, and PowerPoint files and applications.
 
 This is an independent open-source project and is not affiliated with or endorsed by Microsoft.
 
-Office MCP gives an orchestrating AI deterministic handles for Microsoft Office. It can work directly with `.xlsx`, `.docx`, and `.pptx` packages on any supported platform, or use the real installed Excel, Word, and PowerPoint applications on Windows for full-fidelity editing, calculation, charts, PivotTables, PDF export, and slide rendering. It runs locally over stdio and requires no API key.
+Office MCP gives an orchestrating AI deterministic handles for Microsoft Office. It works directly with `.xlsx`, `.docx`, and `.pptx` packages and can use the real installed Excel, Word, and PowerPoint applications on Windows for full-fidelity editing, calculation, charts, PivotTables, PDF export, animation, and slide rendering. It runs locally over stdio and requires no API key. The supported release target is Windows; macOS and Linux are currently out of scope.
 
 The server does not decide what a report, model, or presentation should say. The model plans the work and calls these tools to inspect inputs, construct the documents, render the result, visually review it, and iterate.
 
@@ -44,11 +44,11 @@ You need [Node.js 20+](https://nodejs.org/), Git, and an MCP client such as Code
 
 3. Restart an already-open desktop client or start a new chat. Ask: “Call `office_capabilities` and tell me which Office features are available.” Then try: “Use `powerpoint_create_designed_presentation` to create a two-slide presentation in my Documents folder, inspect it, and report the saved path.” The server runs when the client launches it; do **not** start `node dist/index.js` in a separate terminal.
 
-If you use both clients, run both registration commands. Existing `office` entries should be checked before re-adding them; `codex mcp list` and `claude mcp get office` show what is already configured. The checkout must remain at this path, because the clients launch its compiled `dist/index.js`. See [other platforms and clients](#other-platforms-and-clients) or [troubleshooting](#installation-troubleshooting) below.
+If you use both clients, run both registration commands. Existing `office` entries should be checked before re-adding them; `codex mcp list` and `claude mcp get office` show what is already configured. The checkout must remain at this path, because the clients launch its compiled `dist/index.js`. See [supported clients](#supported-clients) or [troubleshooting](#installation-troubleshooting) below.
 
 ## Why this server
 
-- Hybrid operation: portable Office-file creation and inspection without desktop Office, plus native Windows Office operations when installed.
+- Hybrid Windows operation: direct Office-file creation and inspection without launching desktop Office, plus native Office automation when installed.
 - Prompt-specific quality contracts, file comparisons, render evidence, and a finalization gate that refuses stale or incomplete review.
 - PowerPoint generation that stays in the background by default; it does not repeatedly steal focus from the user's work.
 - Bounded filesystem roots, explicit overwrite behavior, and no arbitrary COM execution tool.
@@ -109,14 +109,11 @@ The server exposes 34 MCP tools:
 
 Microsoft Office does not need to be installed for the portable file operations.
 
-### Platform compatibility
+### Platform support
 
-| Platform | Portable `.xlsx` / `.docx` / `.pptx` tools | Native Office automation and animations | PDF / visual review |
-| --- | --- | --- | --- |
-| Windows | Supported with Node.js | Requires installed desktop Microsoft Office | PowerPoint slide PNGs require desktop PowerPoint; PDF export can use Office or LibreOffice |
-| macOS and Linux | Designed to work with Node.js; verify in your environment | Not supported by the Windows COM bridge | PDF conversion needs LibreOffice; PowerPoint slide PNG review is unavailable |
+Windows 10/11 is the supported target. Direct package operations need Node.js but do not require desktop Office. Native automation, active-document control, Excel recalculation, PowerPoint animations, and PowerPoint rendering require installed desktop Microsoft Office. PDF export can use desktop Office or LibreOffice. macOS and Linux are currently out of scope and are not supported release targets.
 
-The portable path edits document files, whether or not they are open in an Office application. It does not control an open Office window. Only Windows native automation can operate on the active document, add PowerPoint animations, use Excel's calculation engine, or render slides through PowerPoint. This is a local stdio server, not a hosted service: its client must be able to launch the Node.js process and access the allowed files.
+Direct package operations edit document files without controlling an open Office window. This is a local stdio server, not a hosted service: its client must be able to launch the Node.js process and access the allowed files.
 
 ## Verify a development checkout
 
@@ -171,19 +168,23 @@ The optional companion Codex skills live under `skills/`. Install `office-presen
 
 ### Word structure and Excel analysis
 
-`word_create_document` accepts either the original `blocks` array or a `sections` array with separate page size/orientation, margins, headers, footers, and page numbers. Blocks can include an updateable `toc`, a `cited_paragraph` referring to user-supplied `sources`, a `bibliography`, images with required alt text or an explicit decorative flag, hyperlinks, page breaks, and footnotes. Word fills the TOC entries when it updates the field. Citations are formatted document text, not entries in Word's built-in citation manager. Native Word batches can apply styles, insert sections, generate or refresh TOCs, and add comments to an existing document.
+`word_create_document` accepts either the original `blocks` array or a `sections` array with separate page size/orientation, margins, headers, footers, and page numbers. Blocks can include an updateable `toc`, a `cited_paragraph` referring to user-supplied `sources`, a `bibliography`, images with required alt text or an explicit decorative flag, hyperlinks, page breaks, and footnotes. Word fills the TOC entries when it updates the field. Citations are formatted document text, not entries in Word's built-in citation manager.
+
+Native Word batches support exact character ranges for insertion, deletion, and formatting; styles and sections; bookmarks, hyperlinks, fields, footnotes, endnotes, and content controls; page setup and section headers/footers; revision listing or accept/reject-all; protection; tables, comments, TOCs, and PDF export. Range offsets use Word's zero-based character positions. Inspect or read the document before targeting a range, and reopen after saving to verify field and layout persistence.
 
 `excel_analyze_dataset` profiles a sheet or selected range for missing and duplicate rows, column types, descriptive numeric statistics, IQR outliers, top text values, dates, formula/error counts, and strongest Pearson correlations. It analyzes at most 50,000 rows and 100 columns per call. It does not clean the data, infer causation, run statistical tests, or calculate uncached formulas; use native Excel recalculation first when formula results matter.
 
-`excel_query_dataset` reads up to 50,000 rows and 100 columns, applies typed filters, optionally groups and aggregates (`count`, `countDistinct`, `sum`, `average`, `min`, `max`), sorts, and returns at most 1,000 rows. It never writes back. Native Excel batches can define names, add conditional formatting, and set data validation.
+`excel_query_dataset` reads up to 50,000 rows and 100 columns, applies typed filters, optionally groups and aggregates (`count`, `countDistinct`, `sum`, `average`, `min`, `max`), sorts, and returns at most 1,000 rows. It never writes back. Native Excel batches additionally support structural row/column edits, merging, sizing and hiding, frozen panes, worksheet copying and visibility, tables and resizing, names, hyperlinks, comments, validation, conditional formatting, charts, pivots, duplicate removal, Goal Seek, sorting/filtering, refresh, protection, print setup, recalculation, and PDF export.
 
 ### Animations and transitions
 
-On Windows with installed desktop PowerPoint, `powerpoint_native_batch` can apply object entrance (`appear`, `fade`, `fly`, `wipe`, `zoom`), emphasis (`spin`, `growShrink`), and exit (`fade`, `fly`, `wipe`, `zoom`) effects. Triggers are `onClick`, `withPrevious`, and `afterPrevious`; duration and delay use seconds. Call `list_shapes` to get a shape's name or 1-based index before targeting it. `rename_shape`, `group_shapes`, `ungroup_shape`, `set_z_order`, and `update_shape` provide the object controls needed for cinematic sequences. `list_animations`, `update_animation`, `move_animation`, `delete_animation`, and `clear_animations` support timeline inspection and revision, including repeat and reverse settings. `add_media` embeds a local audio or video asset. `set_transition` supports `none`, `cut`, `fade`, left/right push and wipe, zoom-in, and true PowerPoint Morph by object, word, or character. For deterministic Morph matching, give paired shapes the same name beginning with `!!`, duplicate the slide, then move or resize those shapes on the duplicate. `export_video` creates an MP4 or WMV and waits for PowerPoint to finish encoding it. Include a `save` operation and reopen the result to verify persistence.
+On Windows with installed desktop PowerPoint, `powerpoint_native_batch` can build and revise slides, text, shapes, lines, pictures, media, and tables; align or distribute objects; control z-order and grouping; crop and correct pictures; format complete text frames or selected character runs; add hyperlinks; and hide slides. Call `list_shapes` to get a shape's stable name or current 1-based index before targeting it.
 
-This is an expanding, validated Office capability set, not a wrapper around every Office command. Arbitrary COM execution is intentionally not exposed. Animation playback itself is not captured by the static PNG renderer.
+The animation layer provides named entrance (`appear`, `fade`, `fly`, `wipe`, `zoom`), emphasis (`spin`, `growShrink`), and exit effects plus an advanced `effectId` escape hatch for documented `MsoAnimEffect` values. It supports triggers, duration, delay, repeat, reverse, acceleration/deceleration, text/chart animation levels, sequence ordering, and compound rotation, scale, or motion behaviors. `set_transition` supports `none`, `cut`, `fade`, left/right push and wipe, zoom-in, and true PowerPoint Morph by object, word, or character. For deterministic Morph matching, give paired shapes the same name beginning with `!!`, duplicate the slide, then move or resize those shapes on the duplicate. `export_video` creates an MP4 or WMV and waits for PowerPoint to finish encoding it. Include a `save` operation and reopen the result to verify persistence.
 
-## Other platforms and clients
+This is an expanding, validated Office capability set, not a wrapper around every Office command. Arbitrary COM execution is intentionally not exposed. Advanced numeric Office enum values are typed data, not executable code, and may depend on the installed Office version. Animation playback itself is not captured by the static PNG renderer.
+
+## Supported clients
 
 The [quick start](#quick-start-windows-powershell) is the shortest route for Windows. The same built server works with any local stdio MCP client that can launch Node.js. Client configuration is separate: adding Office MCP to Codex does not automatically add it to Claude Code.
 
@@ -194,19 +195,6 @@ The `codex mcp add` command in the quick start writes Codex's user configuration
 ### Claude Code
 
 The quick start uses Claude Code's `user` scope, so the server is available in all your local projects. Run `claude mcp list` or use `/mcp` inside Claude Code to check its connection. See [Claude Code's MCP setup guide](https://code.claude.com/docs/en/mcp).
-
-### macOS or Linux
-
-Portable `.xlsx`, `.docx`, and `.pptx` tools are designed for Node.js on these platforms, but this project's native Office bridge and PowerPoint PNG rendering are Windows-only. After cloning and running `npm ci` and `npm run build`, run the following from the repository root in a Bash-compatible shell; choose **one** client command:
-
-```bash
-entry="$(pwd -P)/dist/index.js"
-allowed="$(pwd -P)" # Change to a directory containing the documents you want to use.
-codex mcp add office --env "OFFICE_MCP_ROOTS=$allowed" -- node "$entry"
-# Or: claude mcp add --scope user --env "OFFICE_MCP_ROOTS=$allowed" --transport stdio office -- node "$entry"
-```
-
-The default example grants access only to the repository. Set `allowed` to an absolute documents directory if your files live elsewhere. Restart the client, check its MCP connection, and call `office_capabilities`.
 
 ### Other local MCP clients
 
@@ -228,7 +216,7 @@ Configure a stdio server with `node` as the command, the absolute path to `dist/
 | `codex` or `claude` is not recognized | Install the corresponding client CLI, or use that client's graphical MCP settings. |
 | Client says the server cannot start | Run `npm run build`; check that `dist/index.js` exists and that the configured path still points to this checkout. Do not expect a standalone `node dist/index.js` process to print a success message; it waits for MCP input. |
 | `office` already exists | Inspect the existing entry with `codex mcp list` or `claude mcp get office`; don't create a duplicate. If you intend to replace it, remove the old entry in that same client and rerun the setup command. |
-| A file is rejected as outside allowed roots | Set `OFFICE_MCP_ROOTS` to an absolute parent folder containing that file, then restart the client. Multiple Windows roots use `;`; macOS/Linux roots use `:`. |
+| A file is rejected as outside allowed roots | Set `OFFICE_MCP_ROOTS` to an absolute parent folder containing that file, then restart the client. Separate multiple Windows roots with `;`. |
 | Native animations, Excel recalculation, or PowerPoint rendering are unavailable | These require Windows and installed desktop Microsoft Office. Start by calling `office_capabilities` and `office_native_status`. |
 | ChatGPT web cannot see the server | Web chats do not load local stdio MCP configuration; use ChatGPT desktop/Codex or build a separately hosted integration. |
 
@@ -242,7 +230,7 @@ On Windows, separate multiple roots with a semicolon:
 C:\Users\your-name\Documents;D:\Company Files
 ```
 
-On macOS and Linux, separate roots with a colon. The server resolves every input and output path before use and rejects path traversal outside these roots.
+The server resolves every input and output path before use and rejects path traversal outside these roots.
 
 ## PDF conversion
 

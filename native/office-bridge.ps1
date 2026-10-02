@@ -210,6 +210,71 @@ function Invoke-ExcelBatch($Request) {
           $results += @{ op = $op; range = [string]$range.Address($false, $false) }
           Release-ComObject $range; Release-ComObject $sheet
         }
+        "clear_range" {
+          $sheet = $book.Worksheets.Item([string]$operation.sheet)
+          $range = $sheet.Range([string]$operation.range)
+          if ([bool](Get-Property $operation "contentsOnly" $false)) { $range.ClearContents() } else { $range.Clear() }
+          $results += @{ op = $op; range = [string]$range.Address($false, $false) }
+          Release-ComObject $range; Release-ComObject $sheet
+        }
+        "merge_cells" {
+          $sheet = $book.Worksheets.Item([string]$operation.sheet); $range = $sheet.Range([string]$operation.range)
+          $range.Merge(); $results += @{ op = $op; range = [string]$range.Address($false, $false) }
+          Release-ComObject $range; Release-ComObject $sheet
+        }
+        "unmerge_cells" {
+          $sheet = $book.Worksheets.Item([string]$operation.sheet); $range = $sheet.Range([string]$operation.range)
+          $range.UnMerge(); $results += @{ op = $op; range = [string]$range.Address($false, $false) }
+          Release-ComObject $range; Release-ComObject $sheet
+        }
+        "insert_rows" {
+          $sheet = $book.Worksheets.Item([string]$operation.sheet)
+          $range = $sheet.Range($sheet.Rows.Item([int]$operation.startRow), $sheet.Rows.Item([int]$operation.startRow + [int]$operation.count - 1))
+          $range.Insert(-4121); $results += @{ op = $op; inserted = [int]$operation.count }
+          Release-ComObject $range; Release-ComObject $sheet
+        }
+        "delete_rows" {
+          $sheet = $book.Worksheets.Item([string]$operation.sheet)
+          $range = $sheet.Range($sheet.Rows.Item([int]$operation.startRow), $sheet.Rows.Item([int]$operation.startRow + [int]$operation.count - 1))
+          $range.Delete(-4162); $results += @{ op = $op; deleted = [int]$operation.count }
+          Release-ComObject $range; Release-ComObject $sheet
+        }
+        "insert_columns" {
+          $sheet = $book.Worksheets.Item([string]$operation.sheet)
+          $range = $sheet.Range($sheet.Columns.Item([int]$operation.startColumn), $sheet.Columns.Item([int]$operation.startColumn + [int]$operation.count - 1))
+          $range.Insert(-4161); $results += @{ op = $op; inserted = [int]$operation.count }
+          Release-ComObject $range; Release-ComObject $sheet
+        }
+        "delete_columns" {
+          $sheet = $book.Worksheets.Item([string]$operation.sheet)
+          $range = $sheet.Range($sheet.Columns.Item([int]$operation.startColumn), $sheet.Columns.Item([int]$operation.startColumn + [int]$operation.count - 1))
+          $range.Delete(-4159); $results += @{ op = $op; deleted = [int]$operation.count }
+          Release-ComObject $range; Release-ComObject $sheet
+        }
+        "set_dimensions" {
+          $sheet = $book.Worksheets.Item([string]$operation.sheet)
+          if ($null -ne $operation.PSObject.Properties["rows"]) {
+            $range = $sheet.Rows.Item([string]$operation.rows)
+            if ($null -ne $operation.PSObject.Properties["rowHeight"]) { $range.RowHeight = [double]$operation.rowHeight }
+            if ($null -ne $operation.PSObject.Properties["hidden"]) { $range.Hidden = [bool]$operation.hidden }
+            Release-ComObject $range
+          }
+          if ($null -ne $operation.PSObject.Properties["columns"]) {
+            $range = $sheet.Columns.Item([string]$operation.columns)
+            if ($null -ne $operation.PSObject.Properties["columnWidth"]) { $range.ColumnWidth = [double]$operation.columnWidth }
+            if ($null -ne $operation.PSObject.Properties["hidden"]) { $range.Hidden = [bool]$operation.hidden }
+            Release-ComObject $range
+          }
+          $results += @{ op = $op; updated = $true }; Release-ComObject $sheet
+        }
+        "freeze_panes" {
+          $sheet = $book.Worksheets.Item([string]$operation.sheet); $sheet.Activate()
+          $window = $book.Windows.Item(1); $window.FreezePanes = $false
+          $window.SplitRow = [int](Get-Property $operation "row" 0); $window.SplitColumn = [int](Get-Property $operation "column" 0)
+          $window.FreezePanes = ($window.SplitRow -gt 0 -or $window.SplitColumn -gt 0)
+          $results += @{ op = $op; row = [int]$window.SplitRow; column = [int]$window.SplitColumn }
+          Release-ComObject $window; Release-ComObject $sheet
+        }
         "format_range" {
           $sheet = $book.Worksheets.Item([string]$operation.sheet)
           $range = $sheet.Range([string]$operation.range)
@@ -236,6 +301,18 @@ function Invoke-ExcelBatch($Request) {
           $sheet.Name = [string]$operation.name
           $results += @{ op = $op; name = [string]$sheet.Name }
           Release-ComObject $sheet
+        }
+        "copy_sheet" {
+          $sheet = $book.Worksheets.Item([string]$operation.sheet)
+          $after = if ($null -ne $operation.PSObject.Properties["afterSheet"]) { $book.Worksheets.Item([string]$operation.afterSheet) } else { $book.Worksheets.Item($book.Worksheets.Count) }
+          $sheet.Copy([System.Type]::Missing, $after); $copy = $book.Worksheets.Item($after.Index + 1); $copy.Name = [string]$operation.newName
+          $results += @{ op = $op; name = [string]$copy.Name }
+          Release-ComObject $copy; Release-ComObject $after; Release-ComObject $sheet
+        }
+        "set_sheet_visibility" {
+          $values = @{ visible = -1; hidden = 0; veryHidden = 2 }
+          $sheet = $book.Worksheets.Item([string]$operation.sheet); $sheet.Visible = [int]$values[[string]$operation.visibility]
+          $results += @{ op = $op; sheet = [string]$sheet.Name; visibility = [string]$operation.visibility }; Release-ComObject $sheet
         }
         "define_name" {
           $sheet = $book.Worksheets.Item([string]$operation.sheet)
@@ -295,6 +372,21 @@ function Invoke-ExcelBatch($Request) {
           if ($null -ne $operation.PSObject.Properties["style"]) { $table.TableStyle = [string]$operation.style }
           $results += @{ op = $op; name = [string]$table.Name }
           Release-ComObject $table; Release-ComObject $range; Release-ComObject $sheet
+        }
+        "resize_table" {
+          $sheet = $book.Worksheets.Item([string]$operation.sheet); $table = $sheet.ListObjects.Item([string]$operation.name); $range = $sheet.Range([string]$operation.range)
+          $table.Resize($range); $results += @{ op = $op; name = [string]$table.Name; range = [string]$table.Range.Address($false, $false) }
+          Release-ComObject $range; Release-ComObject $table; Release-ComObject $sheet
+        }
+        "add_hyperlink" {
+          $sheet = $book.Worksheets.Item([string]$operation.sheet); $range = $sheet.Range([string]$operation.range)
+          $link = $sheet.Hyperlinks.Add($range, [string](Get-Property $operation "address" ""), [string](Get-Property $operation "subAddress" ""), "", [string](Get-Property $operation "text" $range.Text))
+          $results += @{ op = $op; range = [string]$range.Address($false, $false) }; Release-ComObject $link; Release-ComObject $range; Release-ComObject $sheet
+        }
+        "add_comment" {
+          $sheet = $book.Worksheets.Item([string]$operation.sheet); $range = $sheet.Range([string]$operation.range)
+          if ($null -ne $range.Comment) { $range.Comment.Delete() }; $comment = $range.AddComment([string]$operation.text)
+          $results += @{ op = $op; range = [string]$range.Address($false, $false) }; Release-ComObject $comment; Release-ComObject $range; Release-ComObject $sheet
         }
         "add_chart" {
           $sheet = $book.Worksheets.Item([string]$operation.sheet)
@@ -356,6 +448,64 @@ function Invoke-ExcelBatch($Request) {
           [void]$range.AutoFilter([int]$operation.field, (Get-Property $operation "criteria" $null))
           $results += @{ op = $op; filtered = $true }
           Release-ComObject $range; Release-ComObject $sheet
+        }
+        "remove_duplicates" {
+          $sheet = $book.Worksheets.Item([string]$operation.sheet); $range = $sheet.Range([string]$operation.range)
+          [object[]]$columns = @($operation.columns | ForEach-Object { [int]$_ })
+          $range.RemoveDuplicates($columns, $(if ([bool](Get-Property $operation "hasHeader" $true)) { 1 } else { 2 }))
+          $results += @{ op = $op; range = [string]$range.Address($false, $false) }; Release-ComObject $range; Release-ComObject $sheet
+        }
+        "goal_seek" {
+          $sheet = $book.Worksheets.Item([string]$operation.sheet); $formula = $sheet.Range([string]$operation.formulaCell); $changing = $sheet.Range([string]$operation.changingCell)
+          $succeeded = $formula.GoalSeek([double]$operation.goal, $changing)
+          $results += @{ op = $op; succeeded = [bool]$succeeded; value = $changing.Value2 }; Release-ComObject $changing; Release-ComObject $formula; Release-ComObject $sheet
+        }
+        "inspect_formulas" {
+          $sheet = $book.Worksheets.Item([string]$operation.sheet); $source = if ($null -ne $operation.PSObject.Properties["range"]) { $sheet.Range([string]$operation.range) } else { $sheet.UsedRange }
+          $items = @(); $limit = [int](Get-Property $operation "maxResults" 1000); $formulas = $null
+          try { $formulas = $source.SpecialCells(-4123) } catch {}
+          if ($null -ne $formulas) { foreach ($cell in $formulas.Cells) { if ($items.Count -ge $limit) { Release-ComObject $cell; break }; $items += @{ address = [string]$cell.Address($false, $false); formula = [string]$cell.Formula; value = $cell.Value2; hasError = $cell.Value2 -is [System.Runtime.InteropServices.ErrorWrapper] }; Release-ComObject $cell }; Release-ComObject $formulas }
+          $results += @{ op = $op; formulas = $items; truncated = $items.Count -ge $limit }; Release-ComObject $source; Release-ComObject $sheet
+        }
+        "list_queries" {
+          $items = @(); foreach ($query in $book.Queries) { $items += @{ name = [string]$query.Name; formula = [string]$query.Formula; description = [string]$query.Description }; Release-ComObject $query }
+          $results += @{ op = $op; queries = $items }
+        }
+        "add_query" {
+          $query = $book.Queries.Add([string]$operation.name, [string]$operation.formula, [string](Get-Property $operation "description" ""))
+          $results += @{ op = $op; name = [string]$query.Name }; Release-ComObject $query
+        }
+        "delete_query" {
+          $query = $book.Queries.Item([string]$operation.name); $query.Delete(); $results += @{ op = $op; deleted = [string]$operation.name }; Release-ComObject $query
+        }
+        "add_sparkline" {
+          $types = @{ line = 1; column = 2; winLoss = 3 }; $sheet = $book.Worksheets.Item([string]$operation.sheet); $location = $sheet.Range([string]$operation.locationRange); $source = $sheet.Range([string]$operation.sourceRange)
+          $sourceAddress = $source.Address($true, $true, 1, $true); $group = $location.SparklineGroups.Add([int]$types[[string]$operation.kind], $sourceAddress)
+          $results += @{ op = $op; location = [string]$location.Address($false, $false); source = $sourceAddress }; Release-ComObject $group; Release-ComObject $source; Release-ComObject $location; Release-ComObject $sheet
+        }
+        "refresh_all" {
+          $book.RefreshAll(); try { $app.CalculateUntilAsyncQueriesDone() } catch {}
+          $results += @{ op = $op; refreshed = $true }
+        }
+        "protect_sheet" {
+          $sheet = $book.Worksheets.Item([string]$operation.sheet)
+          $sheet.Protect([string](Get-Property $operation "password" ""), $true, $true, $true, $true, $true, $true, $true, $true, [bool](Get-Property $operation "allowSorting" $false), [bool](Get-Property $operation "allowFiltering" $false))
+          $results += @{ op = $op; protected = [bool]$sheet.ProtectContents }; Release-ComObject $sheet
+        }
+        "unprotect_sheet" {
+          $sheet = $book.Worksheets.Item([string]$operation.sheet); $sheet.Unprotect([string](Get-Property $operation "password" ""))
+          $results += @{ op = $op; protected = [bool]$sheet.ProtectContents }; Release-ComObject $sheet
+        }
+        "set_page_setup" {
+          $sheet = $book.Worksheets.Item([string]$operation.sheet); $setup = $sheet.PageSetup
+          if ($null -ne $operation.PSObject.Properties["orientation"]) { $setup.Orientation = if ([string]$operation.orientation -eq "landscape") { 2 } else { 1 } }
+          if ($null -ne $operation.PSObject.Properties["paperSize"]) { $setup.PaperSize = [int]$operation.paperSize }
+          if ($null -ne $operation.PSObject.Properties["printArea"]) { $setup.PrintArea = [string]$operation.printArea }
+          if ($null -ne $operation.PSObject.Properties["fitToPagesWide"]) { $setup.Zoom = $false; $setup.FitToPagesWide = [int]$operation.fitToPagesWide }
+          if ($null -ne $operation.PSObject.Properties["fitToPagesTall"]) { $setup.Zoom = $false; $setup.FitToPagesTall = [int]$operation.fitToPagesTall }
+          if ($null -ne $operation.PSObject.Properties["header"]) { $setup.CenterHeader = [string]$operation.header }
+          if ($null -ne $operation.PSObject.Properties["footer"]) { $setup.CenterFooter = [string]$operation.footer }
+          $results += @{ op = $op; updated = $true }; Release-ComObject $setup; Release-ComObject $sheet
         }
         "recalculate" {
           $app.CalculateFullRebuild()
@@ -438,6 +588,32 @@ function Invoke-WordBatch($Request) {
           if ($text.Length -gt $maxCharacters) { $text = $text.Substring(0, $maxCharacters) }
           $results += @{ op = $op; text = $text; truncated = $document.Content.Text.Length -gt $maxCharacters }
         }
+        "insert_text" {
+          $rangeEnd = if ([bool](Get-Property $operation "replaceSelection" $false)) { [int](Get-Property $operation "end" $operation.start) } else { [int]$operation.start }
+          if ($rangeEnd -lt [int]$operation.start) { throw "Word range end must not be less than start." }
+          $range = $document.Range([int]$operation.start, $rangeEnd)
+          if ([bool](Get-Property $operation "replaceSelection" $false)) { $range.Text = [string]$operation.text } else { $range.InsertBefore([string]$operation.text) }
+          $results += @{ op = $op; start = [int]$operation.start; length = ([string]$operation.text).Length }; Release-ComObject $range
+        }
+        "delete_range" {
+          if ([int]$operation.end -lt [int]$operation.start) { throw "Word range end must not be less than start." }
+          $range = $document.Range([int]$operation.start, [int]$operation.end); $range.Delete()
+          $results += @{ op = $op; start = [int]$operation.start; end = [int]$operation.end }; Release-ComObject $range
+        }
+        "format_range" {
+          $range = $document.Range([int]$operation.start, [int]$operation.end)
+          if ($null -ne $operation.PSObject.Properties["bold"]) { $range.Font.Bold = if ([bool]$operation.bold) { -1 } else { 0 } }
+          if ($null -ne $operation.PSObject.Properties["italic"]) { $range.Font.Italic = if ([bool]$operation.italic) { -1 } else { 0 } }
+          if ($null -ne $operation.PSObject.Properties["underline"]) { $range.Font.Underline = if ([bool]$operation.underline) { 1 } else { 0 } }
+          if ($null -ne $operation.PSObject.Properties["fontName"]) { $range.Font.Name = [string]$operation.fontName }
+          if ($null -ne $operation.PSObject.Properties["fontSize"]) { $range.Font.Size = [double]$operation.fontSize }
+          if ($null -ne $operation.PSObject.Properties["fontColor"]) { $range.Font.Color = Convert-HexColor ([string]$operation.fontColor) }
+          if ($null -ne $operation.PSObject.Properties["paragraphAlignment"]) { $alignments = @{ left = 0; center = 1; right = 2; justify = 3 }; $range.ParagraphFormat.Alignment = [int]$alignments[[string]$operation.paragraphAlignment] }
+          if ($null -ne $operation.PSObject.Properties["lineSpacing"]) { $range.ParagraphFormat.LineSpacing = [double]$operation.lineSpacing }
+          if ($null -ne $operation.PSObject.Properties["spaceBefore"]) { $range.ParagraphFormat.SpaceBefore = [double]$operation.spaceBefore }
+          if ($null -ne $operation.PSObject.Properties["spaceAfter"]) { $range.ParagraphFormat.SpaceAfter = [double]$operation.spaceAfter }
+          $results += @{ op = $op; start = [int]$range.Start; end = [int]$range.End }; Release-ComObject $range
+        }
         "apply_style" {
           $paragraph = $document.Paragraphs.Item([int]$operation.paragraphIndex)
           $paragraph.Range.Style = [string]$operation.style
@@ -474,6 +650,40 @@ function Invoke-WordBatch($Request) {
           $comment = $document.Comments.Add($paragraph.Range, [string]$operation.text)
           $results += @{ op = $op; comments = [int]$document.Comments.Count }
           Release-ComObject $comment; Release-ComObject $paragraph
+        }
+        "add_bookmark" {
+          $range = $document.Range([int]$operation.start, [int]$operation.end); $bookmark = $document.Bookmarks.Add([string]$operation.name, $range)
+          $results += @{ op = $op; name = [string]$bookmark.Name }; Release-ComObject $bookmark; Release-ComObject $range
+        }
+        "add_hyperlink" {
+          $range = $document.Range([int]$operation.start, [int]$operation.end)
+          if ($null -ne $operation.PSObject.Properties["text"]) { $range.Text = [string]$operation.text }
+          $link = $document.Hyperlinks.Add($range, [string](Get-Property $operation "address" ""), [string](Get-Property $operation "subAddress" ""))
+          $results += @{ op = $op; text = [string]$link.TextToDisplay }; Release-ComObject $link; Release-ComObject $range
+        }
+        "add_field" {
+          $range = $document.Range([int]$operation.start, [int]$operation.start)
+          $field = $document.Fields.Add($range, [int](Get-Property $operation "fieldType" -1), [string](Get-Property $operation "code" ""), [bool](Get-Property $operation "preserveFormatting" $true))
+          $results += @{ op = $op; type = [int]$field.Type; result = [string]$field.Result.Text }; Release-ComObject $field; Release-ComObject $range
+        }
+        "add_footnote" {
+          $range = $document.Range([int]$operation.start, [int]$operation.start); $note = $document.Footnotes.Add($range, "", [string]$operation.text)
+          $results += @{ op = $op; count = [int]$document.Footnotes.Count }; Release-ComObject $note; Release-ComObject $range
+        }
+        "add_endnote" {
+          $range = $document.Range([int]$operation.start, [int]$operation.start); $note = $document.Endnotes.Add($range, "", [string]$operation.text)
+          $results += @{ op = $op; count = [int]$document.Endnotes.Count }; Release-ComObject $note; Release-ComObject $range
+        }
+        "add_content_control" {
+          $types = @{ richText = 0; text = 1; picture = 2; comboBox = 3; dropDown = 4; date = 6; checkbox = 8 }
+          $range = $document.Range([int]$operation.start, [int]$operation.end); $control = $document.ContentControls.Add([int]$types[[string]$operation.kind], $range)
+          if ($null -ne $operation.PSObject.Properties["title"]) { $control.Title = [string]$operation.title }
+          if ($null -ne $operation.PSObject.Properties["tag"]) { $control.Tag = [string]$operation.tag }
+          if ($null -ne $operation.PSObject.Properties["placeholder"]) { $control.SetPlaceholderText($null, $null, [string]$operation.placeholder) }
+          if ($null -ne $operation.PSObject.Properties["items"] -and ([string]$operation.kind -eq "comboBox" -or [string]$operation.kind -eq "dropDown")) {
+            foreach ($item in $operation.items) { [void]$control.DropdownListEntries.Add([string]$item) }
+          }
+          $results += @{ op = $op; id = [string]$control.ID; title = [string]$control.Title }; Release-ComObject $control; Release-ComObject $range
         }
         "append_text" {
           $range = $document.Content
@@ -526,6 +736,41 @@ function Invoke-WordBatch($Request) {
         "set_track_changes" {
           $document.TrackRevisions = [bool]$operation.enabled
           $results += @{ op = $op; enabled = [bool]$document.TrackRevisions }
+        }
+        "review_revisions" {
+          $action = [string]$operation.action
+          if ($action -eq "acceptAll") { $document.Revisions.AcceptAll() }
+          elseif ($action -eq "rejectAll") { $document.Revisions.RejectAll() }
+          $items = @()
+          if ($action -eq "list") {
+            foreach ($revision in $document.Revisions) { $items += @{ type = [int]$revision.Type; author = [string]$revision.Author; date = [string]$revision.Date; text = [string]$revision.Range.Text }; Release-ComObject $revision }
+          }
+          $results += @{ op = $op; action = $action; remaining = [int]$document.Revisions.Count; revisions = $items }
+        }
+        "set_page_setup" {
+          $section = if ($null -ne $operation.PSObject.Properties["section"]) { $document.Sections.Item([int]$operation.section) } else { $document.Sections.Item(1) }
+          $setup = $section.PageSetup
+          if ($null -ne $operation.PSObject.Properties["orientation"]) { $setup.Orientation = if ([string]$operation.orientation -eq "landscape") { 1 } else { 0 } }
+          foreach ($name in @("TopMargin", "BottomMargin", "LeftMargin", "RightMargin")) { $jsonName = $name.Substring(0,1).ToLower() + $name.Substring(1); if ($null -ne $operation.PSObject.Properties[$jsonName]) { $setup.$name = [double]$operation.$jsonName } }
+          if ($null -ne $operation.PSObject.Properties["differentFirstPage"]) { $setup.DifferentFirstPageHeaderFooter = [bool]$operation.differentFirstPage }
+          if ($null -ne $operation.PSObject.Properties["oddAndEvenPages"]) { $setup.OddAndEvenPagesHeaderFooter = [bool]$operation.oddAndEvenPages }
+          $results += @{ op = $op; section = [int]$section.Index }; Release-ComObject $setup; Release-ComObject $section
+        }
+        "set_header_footer" {
+          $section = $document.Sections.Item([int]$operation.section); $name = [string]$operation.kind
+          $index = if ($name -match "firstPage") { 2 } elseif ($name -match "evenPages") { 3 } else { 1 }
+          $collection = if ($name -match "Header$") { $section.Headers } else { $section.Footers }
+          $item = $collection.Item($index); $item.Range.Text = [string]$operation.text
+          if ($null -ne $operation.PSObject.Properties["linkToPrevious"]) { $item.LinkToPrevious = [bool]$operation.linkToPrevious }
+          $results += @{ op = $op; section = [int]$section.Index; kind = $name }; Release-ComObject $item; Release-ComObject $collection; Release-ComObject $section
+        }
+        "protect" {
+          $types = @{ trackedChanges = 0; comments = 1; forms = 2; readOnly = 3 }
+          $document.Protect([int]$types[[string]$operation.kind], $false, [string](Get-Property $operation "password" ""))
+          $results += @{ op = $op; protectionType = [int]$document.ProtectionType }
+        }
+        "unprotect" {
+          $document.Unprotect([string](Get-Property $operation "password" "")); $results += @{ op = $op; protectionType = [int]$document.ProtectionType }
         }
         "save" {
           $outputPath = [string](Get-Property $operation "outputPath" "")
@@ -730,6 +975,31 @@ function Invoke-PowerPointBatch($Request) {
           $results += @{ op = $op; slide = [int]$slide.SlideIndex }
           Release-ComObject $slide
         }
+        "set_slide_visibility" {
+          $slide = $presentation.Slides.Item([int]$operation.slide); $slide.SlideShowTransition.Hidden = if ([bool]$operation.hidden) { -1 } else { 0 }
+          $results += @{ op = $op; slide = [int]$slide.SlideIndex; hidden = [bool]$operation.hidden }; Release-ComObject $slide
+        }
+        "add_section" {
+          $index = $presentation.SectionProperties.AddBeforeSlide([int]$operation.beforeSlide, [string]$operation.name)
+          $results += @{ op = $op; section = [int]$index; name = [string]$operation.name }
+        }
+        "rename_section" {
+          $presentation.SectionProperties.Rename([int]$operation.section, [string]$operation.name)
+          $results += @{ op = $op; section = [int]$operation.section; name = [string]$presentation.SectionProperties.Name([int]$operation.section) }
+        }
+        "delete_section" {
+          $presentation.SectionProperties.Delete([int]$operation.section, [bool](Get-Property $operation "deleteSlides" $false))
+          $results += @{ op = $op; deleted = [int]$operation.section }
+        }
+        "set_footer" {
+          $slide = $presentation.Slides.Item([int]$operation.slide); $headers = $slide.HeadersFooters
+          if ($null -ne $operation.PSObject.Properties["showFooter"]) { $headers.Footer.Visible = if ([bool]$operation.showFooter) { -1 } else { 0 } }
+          if ($null -ne $operation.PSObject.Properties["footerText"]) { $headers.Footer.Text = [string]$operation.footerText; $headers.Footer.Visible = -1 }
+          if ($null -ne $operation.PSObject.Properties["showSlideNumber"]) { $headers.SlideNumber.Visible = if ([bool]$operation.showSlideNumber) { -1 } else { 0 } }
+          if ($null -ne $operation.PSObject.Properties["showDate"]) { $headers.DateAndTime.Visible = if ([bool]$operation.showDate) { -1 } else { 0 } }
+          if ($null -ne $operation.PSObject.Properties["dateText"]) { $headers.DateAndTime.UseFormat = 0; $headers.DateAndTime.Text = [string]$operation.dateText }
+          $results += @{ op = $op; slide = [int]$slide.SlideIndex }; Release-ComObject $headers; Release-ComObject $slide
+        }
         "add_text" {
           $slide = $presentation.Slides.Item([int]$operation.slide)
           $shape = $slide.Shapes.AddTextbox(1, [double]$operation.left, [double]$operation.top, [double]$operation.width, [double]$operation.height)
@@ -753,6 +1023,27 @@ function Invoke-PowerPointBatch($Request) {
           }
           $results += @{ op = $op; slide = [int]$slide.SlideIndex; shape = [string]$shape.Name }
           Release-ComObject $shape; Release-ComObject $slide
+        }
+        "add_line" {
+          $slide = $presentation.Slides.Item([int]$operation.slide)
+          $shape = $slide.Shapes.AddLine([double]$operation.beginX, [double]$operation.beginY, [double]$operation.endX, [double]$operation.endY)
+          if ($null -ne $operation.PSObject.Properties["color"]) { $shape.Line.ForeColor.RGB = Convert-HexColor ([string]$operation.color) }
+          if ($null -ne $operation.PSObject.Properties["width"]) { $shape.Line.Weight = [double]$operation.width }
+          if ($null -ne $operation.PSObject.Properties["beginArrow"]) { $shape.Line.BeginArrowheadStyle = [int]$operation.beginArrow }
+          if ($null -ne $operation.PSObject.Properties["endArrow"]) { $shape.Line.EndArrowheadStyle = [int]$operation.endArrow }
+          $results += @{ op = $op; slide = [int]$slide.SlideIndex; shape = [string]$shape.Name }; Release-ComObject $shape; Release-ComObject $slide
+        }
+        "add_table" {
+          $rows = @($operation.rows); $rowCount = $rows.Count; $columnCount = @($rows[0]).Count
+          $slide = $presentation.Slides.Item([int]$operation.slide); $shape = $slide.Shapes.AddTable($rowCount, $columnCount, [double]$operation.left, [double]$operation.top, [double]$operation.width, [double]$operation.height); $table = $shape.Table
+          for ($row = 1; $row -le $rowCount; $row++) { for ($column = 1; $column -le $columnCount; $column++) {
+            $cell = $table.Cell($row, $column); $cell.Shape.TextFrame.TextRange.Text = [string]$rows[$row - 1][$column - 1]
+            if ($null -ne $operation.PSObject.Properties["fontSize"]) { $cell.Shape.TextFrame.TextRange.Font.Size = [double]$operation.fontSize }
+            if ($row -eq 1 -and $null -ne $operation.PSObject.Properties["headerFill"]) { $cell.Shape.Fill.ForeColor.RGB = Convert-HexColor ([string]$operation.headerFill) }
+            Release-ComObject $cell
+          } }
+          $results += @{ op = $op; slide = [int]$slide.SlideIndex; shape = [string]$shape.Name; rows = $rowCount; columns = $columnCount }
+          Release-ComObject $table; Release-ComObject $shape; Release-ComObject $slide
         }
         "add_picture" {
           $slide = $presentation.Slides.Item([int]$operation.slide)
@@ -807,6 +1098,49 @@ function Invoke-PowerPointBatch($Request) {
           $results += @{ op = $op; slide = [int]$slide.SlideIndex; shape = [string]$shape.Name; action = $name; zOrderPosition = [int]$shape.ZOrderPosition }
           Release-ComObject $shape; Release-ComObject $slide
         }
+        "align_shapes" {
+          $values = @{ left = 0; center = 1; right = 2; top = 3; middle = 4; bottom = 5 }
+          $slide = $presentation.Slides.Item([int]$operation.slide); [object[]]$selectors = @($operation.shapes | ForEach-Object { if ($_ -is [string]) { [string]$_ } else { [int]$_ } }); $range = $slide.Shapes.Range($selectors)
+          $range.Align([int]$values[[string]$operation.alignment], [bool](Get-Property $operation "relativeToSlide" $false))
+          $results += @{ op = $op; slide = [int]$slide.SlideIndex; count = [int]$range.Count }; Release-ComObject $range; Release-ComObject $slide
+        }
+        "distribute_shapes" {
+          $values = @{ horizontal = 0; vertical = 1 }
+          $slide = $presentation.Slides.Item([int]$operation.slide); [object[]]$selectors = @($operation.shapes | ForEach-Object { if ($_ -is [string]) { [string]$_ } else { [int]$_ } }); $range = $slide.Shapes.Range($selectors)
+          $range.Distribute([int]$values[[string]$operation.direction], [bool](Get-Property $operation "relativeToSlide" $false))
+          $results += @{ op = $op; slide = [int]$slide.SlideIndex; count = [int]$range.Count }; Release-ComObject $range; Release-ComObject $slide
+        }
+        "add_hyperlink" {
+          $slide = $presentation.Slides.Item([int]$operation.slide); $selector = if ($operation.shape -is [string]) { [string]$operation.shape } else { [int]$operation.shape }; $shape = $slide.Shapes.Item($selector)
+          $setting = $shape.ActionSettings.Item(1); $setting.Action = 7; $link = $setting.Hyperlink
+          if ($null -ne $operation.PSObject.Properties["address"]) { $link.Address = [string]$operation.address }
+          if ($null -ne $operation.PSObject.Properties["subAddress"]) { $link.SubAddress = [string]$operation.subAddress }
+          if ($null -ne $operation.PSObject.Properties["screenTip"]) { $link.ScreenTip = [string]$operation.screenTip }
+          $results += @{ op = $op; slide = [int]$slide.SlideIndex; shape = [string]$shape.Name }; Release-ComObject $link; Release-ComObject $setting; Release-ComObject $shape; Release-ComObject $slide
+        }
+        "format_text" {
+          $slide = $presentation.Slides.Item([int]$operation.slide); $selector = if ($operation.shape -is [string]) { [string]$operation.shape } else { [int]$operation.shape }; $shape = $slide.Shapes.Item($selector)
+          if (-not $shape.HasTextFrame) { throw "Shape does not support text: $selector" }
+          $text = if ($null -ne $operation.PSObject.Properties["start"]) { $shape.TextFrame.TextRange.Characters([int]$operation.start, [int](Get-Property $operation "length" 1)) } else { $shape.TextFrame.TextRange }
+          if ($null -ne $operation.PSObject.Properties["fontName"]) { $text.Font.Name = [string]$operation.fontName }
+          if ($null -ne $operation.PSObject.Properties["fontSize"]) { $text.Font.Size = [double]$operation.fontSize }
+          if ($null -ne $operation.PSObject.Properties["color"]) { $text.Font.Color.RGB = Convert-HexColor ([string]$operation.color) }
+          if ($null -ne $operation.PSObject.Properties["bold"]) { $text.Font.Bold = if ([bool]$operation.bold) { -1 } else { 0 } }
+          if ($null -ne $operation.PSObject.Properties["italic"]) { $text.Font.Italic = if ([bool]$operation.italic) { -1 } else { 0 } }
+          if ($null -ne $operation.PSObject.Properties["underline"]) { $text.Font.Underline = if ([bool]$operation.underline) { -1 } else { 0 } }
+          if ($null -ne $operation.PSObject.Properties["alignment"]) { $alignments = @{ left = 1; center = 2; right = 3; justify = 4 }; $text.ParagraphFormat.Alignment = [int]$alignments[[string]$operation.alignment] }
+          if ($null -ne $operation.PSObject.Properties["verticalAlignment"]) { $anchors = @{ top = 1; middle = 3; bottom = 4 }; $shape.TextFrame.VerticalAnchor = [int]$anchors[[string]$operation.verticalAlignment] }
+          foreach ($margin in @("MarginLeft", "MarginRight", "MarginTop", "MarginBottom")) { $jsonName = $margin.Substring(0,1).ToLower() + $margin.Substring(1); if ($null -ne $operation.PSObject.Properties[$jsonName]) { $shape.TextFrame.$margin = [double]$operation.$jsonName } }
+          if ($null -ne $operation.PSObject.Properties["autoFit"]) { $fits = @{ none = 0; resizeShape = 1; shrinkText = 2 }; $shape.TextFrame2.AutoSize = [int]$fits[[string]$operation.autoFit] }
+          $results += @{ op = $op; slide = [int]$slide.SlideIndex; shape = [string]$shape.Name }; Release-ComObject $text; Release-ComObject $shape; Release-ComObject $slide
+        }
+        "format_picture" {
+          $slide = $presentation.Slides.Item([int]$operation.slide); $selector = if ($operation.shape -is [string]) { [string]$operation.shape } else { [int]$operation.shape }; $shape = $slide.Shapes.Item($selector); $picture = $shape.PictureFormat
+          foreach ($name in @("CropLeft", "CropRight", "CropTop", "CropBottom", "Brightness", "Contrast")) { $jsonName = $name.Substring(0,1).ToLower() + $name.Substring(1); if ($null -ne $operation.PSObject.Properties[$jsonName]) { $picture.$name = [double]$operation.$jsonName } }
+          if ($null -ne $operation.PSObject.Properties["transparencyColor"]) { $picture.TransparencyColor = Convert-HexColor ([string]$operation.transparencyColor) }
+          if ($null -ne $operation.PSObject.Properties["transparentBackground"]) { $picture.TransparentBackground = if ([bool]$operation.transparentBackground) { -1 } else { 0 } }
+          $results += @{ op = $op; slide = [int]$slide.SlideIndex; shape = [string]$shape.Name }; Release-ComObject $picture; Release-ComObject $shape; Release-ComObject $slide
+        }
         "update_shape" {
           $slide = $presentation.Slides.Item([int]$operation.slide)
           $shape = $slide.Shapes.Item([string]$operation.name)
@@ -838,13 +1172,13 @@ function Invoke-PowerPointBatch($Request) {
         }
         "add_animation" {
           $phase = [string](Get-Property $operation "phase" "entrance")
-          $name = [string]$operation.effect
+          $name = [string](Get-Property $operation "effect" "appear")
           $effects = @{
             entrance = @{ appear = 1; fade = 10; fly = 2; wipe = 22; zoom = 23 }
             emphasis = @{ spin = 61; growShrink = 59 }
             exit = @{ fade = 10; fly = 2; wipe = 22; zoom = 23 }
           }
-          if (-not $effects.ContainsKey($phase) -or -not $effects[$phase].ContainsKey($name)) {
+          if ($null -eq $operation.PSObject.Properties["effectId"] -and (-not $effects.ContainsKey($phase) -or -not $effects[$phase].ContainsKey($name))) {
             throw "Animation effect '$name' is not supported for phase '$phase'."
           }
           $triggers = @{ onClick = 1; withPrevious = 2; afterPrevious = 3 }
@@ -854,15 +1188,27 @@ function Invoke-PowerPointBatch($Request) {
           $selector = if ($operation.shape -is [string]) { [string]$operation.shape } else { [int]$operation.shape }
           $shape = $slide.Shapes.Item($selector)
           $position = [int](Get-Property $operation "position" -1)
-          $effect = $slide.TimeLine.MainSequence.AddEffect($shape, [int]$effects[$phase][$name], 0, [int]$triggers[$triggerName], $position)
+          $effectId = if ($null -ne $operation.PSObject.Properties["effectId"]) { [int]$operation.effectId } else { [int]$effects[$phase][$name] }
+          $effect = $slide.TimeLine.MainSequence.AddEffect($shape, $effectId, [int](Get-Property $operation "animateByLevel" 0), [int]$triggers[$triggerName], $position)
           if ($phase -eq "exit") { $effect.Exit = -1 }
           $timing = $effect.Timing
           $timing.Duration = [double](Get-Property $operation "durationSeconds" 0.6)
           $timing.TriggerDelayTime = [double](Get-Property $operation "delaySeconds" 0)
           if ($null -ne $operation.PSObject.Properties["repeatCount"]) { $timing.RepeatCount = [int]$operation.repeatCount }
           if ($null -ne $operation.PSObject.Properties["autoReverse"]) { $timing.AutoReverse = if ([bool]$operation.autoReverse) { -1 } else { 0 } }
+          if ($null -ne $operation.PSObject.Properties["accelerate"]) { $timing.Accelerate = [double]$operation.accelerate }
+          if ($null -ne $operation.PSObject.Properties["decelerate"]) { $timing.Decelerate = [double]$operation.decelerate }
           $results += @{ op = $op; slide = [int]$slide.SlideIndex; shape = [string]$shape.Name; animationIndex = [int]$effect.Index; phase = $phase; effect = $name; trigger = $triggerName }
           Release-ComObject $timing; Release-ComObject $effect; Release-ComObject $shape; Release-ComObject $slide
+        }
+        "add_animation_behavior" {
+          $slide = $presentation.Slides.Item([int]$operation.slide); $effect = $slide.TimeLine.MainSequence.Item([int]$operation.animationIndex); $kind = [string]$operation.kind
+          $types = @{ motion = 1; scale = 3; rotation = 4 }; $behavior = $effect.Behaviors.Add([int]$types[$kind])
+          if ($kind -eq "rotation") { $detail = $behavior.RotationEffect; foreach ($name in @("From", "To", "By")) { $jsonName = $name.ToLower(); if ($null -ne $operation.PSObject.Properties[$jsonName]) { $detail.$name = [double]$operation.$jsonName } } }
+          elseif ($kind -eq "scale") { $detail = $behavior.ScaleEffect; foreach ($name in @("FromX", "FromY", "ToX", "ToY")) { $jsonName = $name.Substring(0,1).ToLower() + $name.Substring(1); if ($null -ne $operation.PSObject.Properties[$jsonName]) { $detail.$name = [double]$operation.$jsonName } } }
+          else { $detail = $behavior.MotionEffect; if ($null -ne $operation.PSObject.Properties["path"]) { $detail.Path = [string]$operation.path }; foreach ($name in @("FromX", "FromY", "ToX", "ToY")) { $jsonName = $name.Substring(0,1).ToLower() + $name.Substring(1); if ($null -ne $operation.PSObject.Properties[$jsonName]) { $detail.$name = [double]$operation.$jsonName } } }
+          $results += @{ op = $op; slide = [int]$slide.SlideIndex; animationIndex = [int]$effect.Index; kind = $kind }
+          Release-ComObject $detail; Release-ComObject $behavior; Release-ComObject $effect; Release-ComObject $slide
         }
         "update_animation" {
           $slide = $presentation.Slides.Item([int]$operation.slide)

@@ -1,7 +1,7 @@
 {
-  "name": "office-mcp",
-  "version": "0.9.3",
-  "description": "Local-first MCP server for creating, inspecting, and editing Microsoft Office files.",
+  "name": "@gauravvvvvvvvvv/office-mcp",
+  "version": "0.10.0",
+  "description": "Windows-first MCP server for creating, inspecting, editing, analyzing, and reviewing Microsoft Office files.",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
@@ -33,6 +33,21 @@
     "office"
   ],
   "license": "MIT",
+  "author": "Gaurav",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gauravvvvvvvvvv/office-mcp.git"
+  },
+  "homepage": "https://github.com/gauravvvvvvvvvv/office-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/gauravvvvvvvvvv/office-mcp/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "os": [
+    "win32"
+  ],
   "engines": {
     "node": ">=20"
   },

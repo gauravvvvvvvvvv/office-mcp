@@ -44,12 +44,12 @@ export async function capabilities() {
       excel: {
         extensions: [".xlsx"],
         operations: ["create", "inspect", "read_range", "analyze_dataset", "query_dataset", "write_range", "set_formulas"],
-        nativeOperations: ["define_name", "set_conditional_format", "set_validation", "create_chart", "pivot_table", "sort", "autofilter", "recalculate", "export_pdf"]
+        nativeOperations: ["inspect", "read_range", "set_values", "set_formula", "clear_range", "merge_cells", "unmerge_cells", "insert_rows", "delete_rows", "insert_columns", "delete_columns", "set_dimensions", "freeze_panes", "format_range", "add_sheet", "copy_sheet", "rename_sheet", "delete_sheet", "set_sheet_visibility", "define_name", "set_conditional_format", "set_validation", "add_table", "resize_table", "add_chart", "create_pivot", "sort", "autofilter", "remove_duplicates", "goal_seek", "inspect_formulas", "list_queries", "add_query", "delete_query", "add_sparkline", "refresh_all", "add_hyperlink", "add_comment", "protect_sheet", "unprotect_sheet", "set_page_setup", "recalculate", "save", "export_pdf"]
       },
       word: {
         extensions: [".docx"],
         operations: ["create", "create_sections", "create_toc", "create_citations", "create_images", "create_hyperlinks", "create_footnotes", "inspect", "append_paragraph", "replace_text"],
-        nativeOperations: ["apply_style", "insert_section", "create_toc", "update_toc", "add_comment", "add_table", "set_track_changes", "export_pdf"]
+        nativeOperations: ["inspect", "read_text", "insert_text", "delete_range", "format_range", "apply_style", "insert_section", "create_toc", "update_toc", "add_comment", "add_bookmark", "add_hyperlink", "add_field", "add_footnote", "add_endnote", "add_content_control", "append_text", "add_heading", "replace_text", "add_table", "set_track_changes", "review_revisions", "set_page_setup", "set_header_footer", "protect", "unprotect", "save", "export_pdf"]
       },
       powerpoint: {
         extensions: [".pptx"],
@@ -58,8 +58,8 @@ export async function capabilities() {
         designedLayouts: ["cover", "imageText", "statement", "comparison", "panorama"],
         designedStyles: ["editorial", "cinematic"],
         nativeAnimation: {
-          operations: ["list_shapes", "rename_shape", "group_shapes", "ungroup_shape", "set_z_order", "update_shape", "list_animations", "add_animation", "update_animation", "move_animation", "delete_animation", "clear_animations", "set_transition", "add_media", "export_video"],
-          effects: ["appear", "fade", "fly", "wipe", "zoom", "spin", "growShrink"],
+          operations: ["list_shapes", "rename_shape", "group_shapes", "ungroup_shape", "set_z_order", "align_shapes", "distribute_shapes", "update_shape", "format_text", "format_picture", "add_line", "add_table", "add_hyperlink", "set_slide_visibility", "add_section", "rename_section", "delete_section", "set_footer", "list_animations", "add_animation", "add_animation_behavior", "update_animation", "move_animation", "delete_animation", "clear_animations", "set_transition", "add_media", "export_video"],
+          effects: ["appear", "fade", "fly", "wipe", "zoom", "spin", "growShrink", "advanced effectId values"],
           transitions: ["none", "cut", "fade", "pushLeft", "pushRight", "wipeLeft", "wipeRight", "zoomIn", "morph", "morphWords", "morphCharacters"],
           triggers: ["onClick", "withPrevious", "afterPrevious"]
         }
@@ -91,7 +91,7 @@ export async function capabilities() {
       "File-based native PowerPoint work keeps presentation windows hidden. If PowerPoint is already running, the server refuses background native work unless target.active=true is explicitly requested; portable PPTX creation still works.",
       "Editing an existing Excel file through ExcelJS may not preserve unsupported Excel features such as embedded charts or macros.",
       "Word and PowerPoint text replacement preserves package structure but consolidates replaced multi-run text into the first run.",
-      "Cross-platform live control requires the planned Office.js bridge; Windows live control is available through the native batch tools."
+      "Windows is the supported release target. Live control is available through the native batch tools and requires installed desktop Microsoft Office."
     ]
   };
 }

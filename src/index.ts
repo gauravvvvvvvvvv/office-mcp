@@ -197,6 +197,15 @@ const excelNativeOperationSchema = z.discriminatedUnion("op", [
   z.object({ op: z.literal("read_range"), sheet: z.string(), range: z.string() }),
   z.object({ op: z.literal("set_values"), sheet: z.string(), startCell: z.string(), values: z.array(z.array(z.unknown())) }),
   z.object({ op: z.literal("set_formula"), sheet: z.string(), range: z.string(), formula: z.string() }),
+  z.object({ op: z.literal("clear_range"), sheet: z.string(), range: z.string(), contentsOnly: z.boolean().optional().default(false) }),
+  z.object({ op: z.literal("merge_cells"), sheet: z.string(), range: z.string() }),
+  z.object({ op: z.literal("unmerge_cells"), sheet: z.string(), range: z.string() }),
+  z.object({ op: z.literal("insert_rows"), sheet: z.string(), startRow: z.number().int().positive(), count: z.number().int().positive().max(10000) }),
+  z.object({ op: z.literal("delete_rows"), sheet: z.string(), startRow: z.number().int().positive(), count: z.number().int().positive().max(10000) }),
+  z.object({ op: z.literal("insert_columns"), sheet: z.string(), startColumn: z.number().int().positive(), count: z.number().int().positive().max(1000) }),
+  z.object({ op: z.literal("delete_columns"), sheet: z.string(), startColumn: z.number().int().positive(), count: z.number().int().positive().max(1000) }),
+  z.object({ op: z.literal("set_dimensions"), sheet: z.string(), rows: z.string().optional(), columns: z.string().optional(), rowHeight: z.number().positive().optional(), columnWidth: z.number().positive().optional(), hidden: z.boolean().optional() }),
+  z.object({ op: z.literal("freeze_panes"), sheet: z.string(), row: z.number().int().nonnegative().optional().default(0), column: z.number().int().nonnegative().optional().default(0) }),
   z.object({
     op: z.literal("format_range"),
     sheet: z.string(),
@@ -216,6 +225,8 @@ const excelNativeOperationSchema = z.discriminatedUnion("op", [
     })
   }),
   z.object({ op: z.literal("add_sheet"), name: z.string() }),
+  z.object({ op: z.literal("copy_sheet"), sheet: z.string(), newName: z.string(), afterSheet: z.string().optional() }),
+  z.object({ op: z.literal("set_sheet_visibility"), sheet: z.string(), visibility: z.enum(["visible", "hidden", "veryHidden"]) }),
   z.object({ op: z.literal("define_name"), name: z.string().regex(/^[A-Za-z_][A-Za-z0-9_.]*$/), sheet: z.string(), range: z.string() }),
   z.object({
     op: z.literal("set_conditional_format"), sheet: z.string(), range: z.string(),
@@ -233,6 +244,9 @@ const excelNativeOperationSchema = z.discriminatedUnion("op", [
   z.object({ op: z.literal("rename_sheet"), sheet: z.string(), newName: z.string() }),
   z.object({ op: z.literal("delete_sheet"), sheet: z.string() }),
   z.object({ op: z.literal("add_table"), sheet: z.string(), range: z.string(), name: z.string(), style: z.string().optional() }),
+  z.object({ op: z.literal("resize_table"), sheet: z.string(), name: z.string(), range: z.string() }),
+  z.object({ op: z.literal("add_hyperlink"), sheet: z.string(), range: z.string(), address: z.string().optional(), subAddress: z.string().optional(), text: z.string().optional() }),
+  z.object({ op: z.literal("add_comment"), sheet: z.string(), range: z.string(), text: z.string() }),
   z.object({
     op: z.literal("add_chart"),
     sheet: z.string(),
@@ -260,6 +274,17 @@ const excelNativeOperationSchema = z.discriminatedUnion("op", [
   }),
   z.object({ op: z.literal("sort"), sheet: z.string(), range: z.string(), key: z.string(), ascending: z.boolean().optional() }),
   z.object({ op: z.literal("autofilter"), sheet: z.string(), range: z.string(), field: z.number().int().positive(), criteria: z.unknown().optional() }),
+  z.object({ op: z.literal("remove_duplicates"), sheet: z.string(), range: z.string(), columns: z.array(z.number().int().positive()).min(1), hasHeader: z.boolean().optional().default(true) }),
+  z.object({ op: z.literal("goal_seek"), sheet: z.string(), formulaCell: z.string(), goal: z.number(), changingCell: z.string() }),
+  z.object({ op: z.literal("inspect_formulas"), sheet: z.string(), range: z.string().optional(), maxResults: z.number().int().positive().max(10000).optional().default(1000) }),
+  z.object({ op: z.literal("list_queries") }),
+  z.object({ op: z.literal("add_query"), name: z.string().min(1), formula: z.string().min(1), description: z.string().optional() }),
+  z.object({ op: z.literal("delete_query"), name: z.string().min(1) }),
+  z.object({ op: z.literal("add_sparkline"), sheet: z.string(), sourceRange: z.string(), locationRange: z.string(), kind: z.enum(["line", "column", "winLoss"]) }),
+  z.object({ op: z.literal("refresh_all"), waitSeconds: z.number().int().min(0).max(600).optional().default(60) }),
+  z.object({ op: z.literal("protect_sheet"), sheet: z.string(), password: z.string().optional(), allowFiltering: z.boolean().optional(), allowSorting: z.boolean().optional() }),
+  z.object({ op: z.literal("unprotect_sheet"), sheet: z.string(), password: z.string().optional() }),
+  z.object({ op: z.literal("set_page_setup"), sheet: z.string(), orientation: z.enum(["portrait", "landscape"]).optional(), paperSize: z.number().int().optional(), printArea: z.string().optional(), fitToPagesWide: z.number().int().positive().optional(), fitToPagesTall: z.number().int().positive().optional(), header: z.string().optional(), footer: z.string().optional() }),
   z.object({ op: z.literal("recalculate") }),
   z.object({ op: z.literal("save"), outputPath: filePath.optional() }),
   z.object({ op: z.literal("export_pdf"), outputPath: filePath })
@@ -268,16 +293,30 @@ const excelNativeOperationSchema = z.discriminatedUnion("op", [
 const wordNativeOperationSchema = z.discriminatedUnion("op", [
   z.object({ op: z.literal("inspect") }),
   z.object({ op: z.literal("read_text"), maxCharacters: z.number().int().positive().optional() }),
+  z.object({ op: z.literal("insert_text"), start: z.number().int().nonnegative(), end: z.number().int().nonnegative().optional(), text: z.string(), replaceSelection: z.boolean().optional().default(false) }),
+  z.object({ op: z.literal("delete_range"), start: z.number().int().nonnegative(), end: z.number().int().nonnegative() }),
+  z.object({ op: z.literal("format_range"), start: z.number().int().nonnegative(), end: z.number().int().nonnegative(), bold: z.boolean().optional(), italic: z.boolean().optional(), underline: z.boolean().optional(), fontName: z.string().optional(), fontSize: z.number().positive().optional(), fontColor: z.string().optional(), paragraphAlignment: z.enum(["left", "center", "right", "justify"]).optional(), lineSpacing: z.number().positive().optional(), spaceBefore: z.number().nonnegative().optional(), spaceAfter: z.number().nonnegative().optional() }),
   z.object({ op: z.literal("apply_style"), paragraphIndex: z.number().int().positive(), style: z.string().min(1) }),
   z.object({ op: z.literal("insert_section"), breakType: z.enum(["nextPage", "continuous"]).optional().default("nextPage"), orientation: z.enum(["portrait", "landscape"]).optional() }),
   z.object({ op: z.literal("create_toc"), position: z.enum(["start", "end"]).optional().default("start"), maxLevel: z.number().int().min(1).max(9).optional().default(3) }),
   z.object({ op: z.literal("update_toc") }),
   z.object({ op: z.literal("add_comment"), paragraphIndex: z.number().int().positive(), text: z.string().min(1) }),
+  z.object({ op: z.literal("add_bookmark"), name: z.string().regex(/^[A-Za-z][A-Za-z0-9_]{0,39}$/), start: z.number().int().nonnegative(), end: z.number().int().nonnegative() }),
+  z.object({ op: z.literal("add_hyperlink"), start: z.number().int().nonnegative(), end: z.number().int().nonnegative(), address: z.string().optional(), subAddress: z.string().optional(), text: z.string().optional() }),
+  z.object({ op: z.literal("add_field"), start: z.number().int().nonnegative(), fieldType: z.number().int().optional(), code: z.string().optional(), preserveFormatting: z.boolean().optional().default(true) }),
+  z.object({ op: z.literal("add_footnote"), start: z.number().int().nonnegative(), text: z.string() }),
+  z.object({ op: z.literal("add_endnote"), start: z.number().int().nonnegative(), text: z.string() }),
+  z.object({ op: z.literal("add_content_control"), start: z.number().int().nonnegative(), end: z.number().int().nonnegative(), kind: z.enum(["richText", "text", "picture", "comboBox", "dropDown", "date", "checkbox"]), title: z.string().optional(), tag: z.string().optional(), placeholder: z.string().optional(), items: z.array(z.string()).optional() }),
   z.object({ op: z.literal("append_text"), text: z.string(), newParagraph: z.boolean().optional(), style: z.string().optional() }),
   z.object({ op: z.literal("add_heading"), text: z.string(), level: z.number().int().min(1).max(9).optional() }),
   z.object({ op: z.literal("replace_text"), find: z.string().min(1), replacement: z.string(), matchCase: z.boolean().optional() }),
   z.object({ op: z.literal("add_table"), rows: z.array(z.array(z.string())).min(1), headerRow: z.boolean().optional(), style: z.string().optional() }),
   z.object({ op: z.literal("set_track_changes"), enabled: z.boolean() }),
+  z.object({ op: z.literal("review_revisions"), action: z.enum(["list", "acceptAll", "rejectAll"]) }),
+  z.object({ op: z.literal("set_page_setup"), section: z.number().int().positive().optional(), orientation: z.enum(["portrait", "landscape"]).optional(), topMargin: z.number().nonnegative().optional(), bottomMargin: z.number().nonnegative().optional(), leftMargin: z.number().nonnegative().optional(), rightMargin: z.number().nonnegative().optional(), differentFirstPage: z.boolean().optional(), oddAndEvenPages: z.boolean().optional() }),
+  z.object({ op: z.literal("set_header_footer"), section: z.number().int().positive(), kind: z.enum(["primaryHeader", "firstPageHeader", "evenPagesHeader", "primaryFooter", "firstPageFooter", "evenPagesFooter"]), text: z.string(), linkToPrevious: z.boolean().optional() }),
+  z.object({ op: z.literal("protect"), kind: z.enum(["trackedChanges", "comments", "forms", "readOnly"]), password: z.string().optional() }),
+  z.object({ op: z.literal("unprotect"), password: z.string().optional() }),
   z.object({ op: z.literal("save"), outputPath: filePath.optional() }),
   z.object({ op: z.literal("export_pdf"), outputPath: filePath })
 ]);
@@ -292,6 +331,11 @@ const powerpointNativeOperationSchema = z.discriminatedUnion("op", [
   z.object({ op: z.literal("add_slide_from_layout"), designIndex: z.number().int().positive(), layoutIndex: z.number().int().positive() }),
   z.object({ op: z.literal("duplicate_slide"), slide: z.number().int().positive(), toIndex: z.number().int().positive().optional() }),
   z.object({ op: z.literal("move_slide"), slide: z.number().int().positive(), toIndex: z.number().int().positive() }),
+  z.object({ op: z.literal("set_slide_visibility"), slide: z.number().int().positive(), hidden: z.boolean() }),
+  z.object({ op: z.literal("add_section"), beforeSlide: z.number().int().positive(), name: z.string().min(1) }),
+  z.object({ op: z.literal("rename_section"), section: z.number().int().positive(), name: z.string().min(1) }),
+  z.object({ op: z.literal("delete_section"), section: z.number().int().positive(), deleteSlides: z.boolean().optional().default(false) }),
+  z.object({ op: z.literal("set_footer"), slide: z.number().int().positive(), footerText: z.string().optional(), showFooter: z.boolean().optional(), showSlideNumber: z.boolean().optional(), showDate: z.boolean().optional(), dateText: z.string().optional() }),
   z.object({
     op: z.literal("add_text"), slide: z.number().int().positive(), text: z.string(),
     left: z.number(), top: z.number(), width: z.number().positive(), height: z.number().positive(),
@@ -303,6 +347,8 @@ const powerpointNativeOperationSchema = z.discriminatedUnion("op", [
     left: z.number(), top: z.number(), width: z.number().positive(), height: z.number().positive(),
     fillColor: z.string().optional(), lineColor: z.string().optional(), text: z.string().optional()
   }),
+  z.object({ op: z.literal("add_line"), slide: z.number().int().positive(), beginX: z.number(), beginY: z.number(), endX: z.number(), endY: z.number(), color: z.string().optional(), width: z.number().positive().optional(), beginArrow: z.number().int().optional(), endArrow: z.number().int().optional() }),
+  z.object({ op: z.literal("add_table"), slide: z.number().int().positive(), rows: z.array(z.array(z.string())).min(1), left: z.number(), top: z.number(), width: z.number().positive(), height: z.number().positive(), headerFill: z.string().optional(), fontSize: z.number().positive().optional() }),
   z.object({
     op: z.literal("add_picture"), slide: z.number().int().positive(), path: filePath,
     left: z.number(), top: z.number(), width: z.number().positive(), height: z.number().positive(),
@@ -331,6 +377,11 @@ const powerpointNativeOperationSchema = z.discriminatedUnion("op", [
     shape: z.union([z.string().min(1), z.number().int().positive()]),
     action: z.enum(["bringToFront", "bringForward", "sendBackward", "sendToBack"])
   }),
+  z.object({ op: z.literal("align_shapes"), slide: z.number().int().positive(), shapes: z.array(z.union([z.string().min(1), z.number().int().positive()])).min(2), alignment: z.enum(["left", "center", "right", "top", "middle", "bottom"]), relativeToSlide: z.boolean().optional().default(false) }),
+  z.object({ op: z.literal("distribute_shapes"), slide: z.number().int().positive(), shapes: z.array(z.union([z.string().min(1), z.number().int().positive()])).min(3), direction: z.enum(["horizontal", "vertical"]), relativeToSlide: z.boolean().optional().default(false) }),
+  z.object({ op: z.literal("add_hyperlink"), slide: z.number().int().positive(), shape: z.union([z.string().min(1), z.number().int().positive()]), address: z.string().optional(), subAddress: z.string().optional(), screenTip: z.string().optional() }),
+  z.object({ op: z.literal("format_text"), slide: z.number().int().positive(), shape: z.union([z.string().min(1), z.number().int().positive()]), start: z.number().int().positive().optional(), length: z.number().int().positive().optional(), fontName: z.string().optional(), fontSize: z.number().positive().optional(), color: z.string().optional(), bold: z.boolean().optional(), italic: z.boolean().optional(), underline: z.boolean().optional(), alignment: z.enum(["left", "center", "right", "justify"]).optional(), verticalAlignment: z.enum(["top", "middle", "bottom"]).optional(), marginLeft: z.number().nonnegative().optional(), marginRight: z.number().nonnegative().optional(), marginTop: z.number().nonnegative().optional(), marginBottom: z.number().nonnegative().optional(), autoFit: z.enum(["none", "shrinkText", "resizeShape"]).optional() }),
+  z.object({ op: z.literal("format_picture"), slide: z.number().int().positive(), shape: z.union([z.string().min(1), z.number().int().positive()]), cropLeft: z.number().optional(), cropRight: z.number().optional(), cropTop: z.number().optional(), cropBottom: z.number().optional(), brightness: z.number().min(-1).max(1).optional(), contrast: z.number().min(-1).max(1).optional(), transparencyColor: z.string().optional(), transparentBackground: z.boolean().optional() }),
   z.object({
     op: z.literal("update_shape"), slide: z.number().int().positive(), name: z.string(),
     left: z.number().optional(), top: z.number().optional(), width: z.number().positive().optional(), height: z.number().positive().optional(),
@@ -345,14 +396,18 @@ const powerpointNativeOperationSchema = z.discriminatedUnion("op", [
     slide: z.number().int().positive(),
     shape: z.union([z.string().min(1), z.number().int().positive()]).describe("Shape name or 1-based index from list_shapes"),
     phase: z.enum(["entrance", "emphasis", "exit"]).optional().default("entrance"),
-    effect: z.enum(["appear", "fade", "fly", "wipe", "zoom", "spin", "growShrink"]),
+    effect: z.enum(["appear", "fade", "fly", "wipe", "zoom", "spin", "growShrink"]).optional(),
+    effectId: z.number().int().positive().optional().describe("Advanced MsoAnimEffect value when the named subset is insufficient"),
+    animateByLevel: z.number().int().min(0).max(8).optional(),
     trigger: z.enum(["onClick", "withPrevious", "afterPrevious"]).optional().default("onClick"),
     durationSeconds: z.number().min(0.1).max(30).optional().default(0.6),
     delaySeconds: z.number().min(0).max(60).optional().default(0),
     repeatCount: z.number().int().min(1).max(100).optional(),
     autoReverse: z.boolean().optional(),
+    accelerate: z.number().min(0).max(1).optional(), decelerate: z.number().min(0).max(1).optional(),
     position: z.number().int().positive().optional()
   }),
+  z.object({ op: z.literal("add_animation_behavior"), slide: z.number().int().positive(), animationIndex: z.number().int().positive(), kind: z.enum(["rotation", "scale", "motion"]), from: z.number().optional(), to: z.number().optional(), by: z.number().optional(), fromX: z.number().optional(), fromY: z.number().optional(), toX: z.number().optional(), toY: z.number().optional(), path: z.string().optional() }),
   z.object({
     op: z.literal("update_animation"), slide: z.number().int().positive(), animationIndex: z.number().int().positive(),
     trigger: z.enum(["onClick", "withPrevious", "afterPrevious"]).optional(),
@@ -952,7 +1007,7 @@ serveStdio(() => {
   server.registerTool(
     "excel_native_batch",
     {
-      description: "Execute an ordered batch through real Microsoft Excel. Supports active or closed workbooks, native calculation, formatting, tables, charts, filtering, sorting, PDF export, and save/save-as.",
+      description: "Execute an ordered batch through real Microsoft Excel. Supports active or closed workbooks; exact ranges; structural row, column, and sheet edits; native calculation; formatting; tables; charts; pivots; Goal Seek; filtering; validation; protection; print setup; PDF export; and save/save-as.",
       inputSchema: z.object({
         target: nativeTargetSchema,
         operations: z.array(excelNativeOperationSchema).min(1),
@@ -966,7 +1021,7 @@ serveStdio(() => {
   server.registerTool(
     "word_native_batch",
     {
-      description: "Execute an ordered batch through real Microsoft Word. Supports active or closed documents, inspection, editing, tables, styles, tracked changes, PDF export, and save/save-as.",
+      description: "Execute an ordered batch through real Microsoft Word. Supports active or closed documents; exact character ranges; formatting; tables; styles; fields; bookmarks; links; notes; content controls; headers and footers; revision review; protection; PDF export; and save/save-as.",
       inputSchema: z.object({
         target: nativeTargetSchema,
         operations: z.array(wordNativeOperationSchema).min(1),
@@ -980,7 +1035,7 @@ serveStdio(() => {
   server.registerTool(
     "powerpoint_native_batch",
     {
-      description: "Execute an ordered batch through real Microsoft PowerPoint. Supports active or closed presentations, slide and shape editing, grouping and z-order, object animations, true Morph transitions, PDF/video export, and PNG rendering. Use list_shapes before targeting shapes. Prefix paired object names with !! for deterministic Morph matching. Native coordinates are points.",
+      description: "Execute an ordered batch through real Microsoft PowerPoint. Supports active or closed presentations; slide, shape, text, picture, line, table, media, alignment, grouping, and z-order editing; hyperlinks; named or advanced animation effects and compound behaviors; true Morph transitions; PDF/video export; and PNG rendering. Use list_shapes before targeting shapes. Prefix paired object names with !! for deterministic Morph matching. Native coordinates are points.",
       inputSchema: z.object({
         target: nativeTargetSchema,
         operations: z.array(powerpointNativeOperationSchema).min(1),
