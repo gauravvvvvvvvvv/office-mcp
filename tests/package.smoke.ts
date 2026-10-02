@@ -6,8 +6,8 @@ import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 import JSZip from "jszip";
 
 const packageRoot = process.env.OFFICE_PACKAGE_SMOKE_ROOT ?? path.join(process.cwd(), "work", "package-smoke");
-const serverPath = path.join(packageRoot, "node_modules", "office-mcp", "dist", "index.js");
-const installedRoot = path.join(packageRoot, "node_modules", "office-mcp");
+const serverPath = path.join(packageRoot, "node_modules", "@parryhotter", "office-mcp", "dist", "index.js");
+const installedRoot = path.join(packageRoot, "node_modules", "@parryhotter", "office-mcp");
 const expectedVersion = (JSON.parse(await readFile(path.join(process.cwd(), "package.json"), "utf8")) as { version: string }).version;
 const testDirectory = await mkdtemp(path.join(packageRoot, "test-files-"));
 const client = new Client({ name: "packaged-office-mcp-test", version: "1.0.0" });
