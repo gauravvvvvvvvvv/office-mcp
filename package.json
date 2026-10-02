@@ -1,6 +1,7 @@
 {
   "name": "@parryhotter/office-mcp",
-  "version": "0.10.1",
+  "version": "0.10.2",
+  "mcpName": "io.github.gauravvvvvvvvvv/office-mcp",
   "description": "Windows-first MCP server for creating, inspecting, editing, analyzing, and reviewing Microsoft Office files.",
   "type": "module",
   "main": "dist/index.js",

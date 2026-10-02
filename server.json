@@ -1,0 +1,31 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.gauravvvvvvvvvv/office-mcp",
+  "title": "Office MCP",
+  "description": "Local Windows MCP server for creating and reviewing Excel, Word, and PowerPoint files.",
+  "websiteUrl": "https://github.com/gauravvvvvvvvvv/office-mcp",
+  "repository": {
+    "url": "https://github.com/gauravvvvvvvvvv/office-mcp",
+    "source": "github"
+  },
+  "version": "0.10.2",
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "@parryhotter/office-mcp",
+      "version": "0.10.2",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "OFFICE_MCP_ROOTS",
+          "description": "Absolute Windows directories that the server may access, separated by semicolons.",
+          "isRequired": false,
+          "isSecret": false
+        }
+      ]
+    }
+  ]
+}

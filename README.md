@@ -1,5 +1,7 @@
 # Office MCP
 
+[![Sponsor on GitHub](https://img.shields.io/github/sponsors/gauravvvvvvvvvv?label=Sponsor&logo=githubsponsors)](https://github.com/sponsors/gauravvvvvvvvvv)
+
 A Windows-first Model Context Protocol server that gives AI agents deterministic, reviewable control over Microsoft Excel, Word, and PowerPoint.
 
 This is an independent open-source project and is not affiliated with or endorsed by Microsoft.
@@ -7,6 +9,10 @@ This is an independent open-source project and is not affiliated with or endorse
 Office MCP gives an orchestrating AI deterministic handles for Microsoft Office and a review pipeline that can verify the exact draft before delivery. It works directly with `.xlsx`, `.docx`, and `.pptx` packages and can use the real installed Excel, Word, and PowerPoint applications on Windows for full-fidelity editing, calculation, charts, PivotTables, PDF export, animation, and slide rendering. It runs locally over stdio, requires no API key, and keeps file access bounded to configured roots. The supported release target is Windows; macOS and Linux are currently out of scope.
 
 The server does not decide what a report, model, or presentation should say. The model plans the work and calls these tools to inspect inputs, construct the documents, render the result, visually review it, and iterate.
+
+## Made with Office MCP
+
+[Watch the Inside an AI Agent video](examples/inside-an-ai-agent.mp4) or [download the editable PowerPoint](examples/inside-an-ai-agent.pptx). The 10-slide deck uses native Morph transitions and timed animations. Every slide was rendered and reviewed through Office MCP before the video export.
 
 ## Quick start (Windows PowerShell)
 
