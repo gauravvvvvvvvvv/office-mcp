@@ -8,3 +8,5 @@
 *.xlsx binary
 *.pptx binary
 *.tgz binary
+*.gif binary
+*.mp4 binary
