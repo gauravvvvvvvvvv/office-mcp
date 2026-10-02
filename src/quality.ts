@@ -268,7 +268,8 @@ async function checkPowerPoint(filePath: string, contract: QualityContract, issu
     }
   }
   for (const finding of audit.issues) {
-    const severity: Severity = finding.code === "UNMEASURED_GROUP" || finding.code === "TEXT_OVERLAP" ? "warning" : "error";
+    const reviewDependent = new Set(["UNMEASURED_GROUP", "TEXT_OVERLAP", "OFF_SLIDE", "LOW_CONTRAST"]);
+    const severity: Severity = reviewDependent.has(finding.code) ? "warning" : "error";
     issues.push(issue(finding.code, severity, `slide:${finding.slide}`, finding.message));
   }
   checkText(presentation.slides.flatMap((slide) => slide.text).join(" "), contract, issues);

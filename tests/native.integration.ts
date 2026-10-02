@@ -222,6 +222,41 @@ test("native Microsoft Office automation creates and renders real Office files",
     assert.ok((await inspectPresentation(filledPath)).slides[1].text.includes("Filled template placeholder"));
   }
 
+  const morphPath = path.join(testDirectory, "morph-native.pptx");
+  const morphBatch = await runNativeBatch("powerpoint", {
+    target: { path: designedPath },
+    operations: [
+      { op: "list_shapes", slide: 1 },
+      { op: "rename_shape", slide: 1, shape: 1, name: "!!MorphHero" },
+      { op: "duplicate_slide", slide: 1, toIndex: 2 },
+      { op: "update_shape", slide: 2, name: "!!MorphHero", left: 180, top: 90, width: 420, height: 120, fillTransparency: 0.1, lineTransparency: 0.2 },
+      { op: "set_z_order", slide: 2, shape: "!!MorphHero", action: "bringToFront" },
+      { op: "set_transition", slide: 2, effect: "morph", durationSeconds: 1.25, advanceOnClick: true },
+      { op: "save", outputPath: morphPath }
+    ]
+  }) as { results: Array<Record<string, unknown>> };
+  assert.equal(morphBatch.results[1].name, "!!MorphHero");
+  assert.equal(morphBatch.results[5].effect, "morph");
+  const reopenedMorph = await runNativeBatch("powerpoint", {
+    target: { path: morphPath },
+    operations: [{ op: "list_shapes", slide: 1 }, { op: "list_shapes", slide: 2 }, { op: "list_animations", slide: 2 }]
+  }) as { results: Array<Record<string, unknown>> };
+  assert.ok((reopenedMorph.results[0].shapes as Array<{ name: string }>).some((shape) => shape.name === "!!MorphHero"));
+  assert.ok((reopenedMorph.results[1].shapes as Array<{ name: string }>).some((shape) => shape.name === "!!MorphHero"));
+  assert.equal((reopenedMorph.results[2].transition as { effectId: number }).effectId, 3954);
+
+  const groupingBatch = await runNativeBatch("powerpoint", {
+    target: { path: designedPath },
+    operations: [
+      { op: "group_shapes", slide: 1, shapes: [1, 2], name: "TemporaryGroup" },
+      { op: "set_z_order", slide: 1, shape: "TemporaryGroup", action: "sendToBack" },
+      { op: "ungroup_shape", slide: 1, shape: "TemporaryGroup" }
+    ]
+  }) as { results: Array<Record<string, unknown>> };
+  assert.equal(groupingBatch.results[0].shape, "TemporaryGroup");
+  assert.equal(groupingBatch.results[0].itemCount, 2);
+  assert.equal((groupingBatch.results[2].shapes as Array<unknown>).length, 2);
+
   const animatedPath = path.join(testDirectory, "animated-native.pptx");
   const animationBatch = await runNativeBatch("powerpoint", {
     target: { path: designedPath },

@@ -767,6 +767,46 @@ function Invoke-PowerPointBatch($Request) {
           $results += @{ op = $op; slide = [int]$slide.SlideIndex; shape = [string]$shape.Name }
           Release-ComObject $shape; Release-ComObject $slide
         }
+        "rename_shape" {
+          $slide = $presentation.Slides.Item([int]$operation.slide)
+          $selector = if ($operation.shape -is [string]) { [string]$operation.shape } else { [int]$operation.shape }
+          $shape = $slide.Shapes.Item($selector)
+          $oldName = [string]$shape.Name
+          $shape.Name = [string]$operation.name
+          $results += @{ op = $op; slide = [int]$slide.SlideIndex; oldName = $oldName; name = [string]$shape.Name }
+          Release-ComObject $shape; Release-ComObject $slide
+        }
+        "group_shapes" {
+          $slide = $presentation.Slides.Item([int]$operation.slide)
+          [object[]]$selectors = @()
+          foreach ($item in $operation.shapes) { $selectors += if ($item -is [string]) { [string]$item } else { [int]$item } }
+          $range = $slide.Shapes.Range($selectors)
+          $shape = $range.Group()
+          if ($null -ne $operation.PSObject.Properties["name"]) { $shape.Name = [string]$operation.name }
+          $results += @{ op = $op; slide = [int]$slide.SlideIndex; shape = [string]$shape.Name; itemCount = [int]$shape.GroupItems.Count }
+          Release-ComObject $shape; Release-ComObject $range; Release-ComObject $slide
+        }
+        "ungroup_shape" {
+          $slide = $presentation.Slides.Item([int]$operation.slide)
+          $selector = if ($operation.shape -is [string]) { [string]$operation.shape } else { [int]$operation.shape }
+          $shape = $slide.Shapes.Item($selector)
+          $range = $shape.Ungroup()
+          $names = @()
+          foreach ($item in $range) { $names += [string]$item.Name; Release-ComObject $item }
+          $results += @{ op = $op; slide = [int]$slide.SlideIndex; shapes = $names }
+          Release-ComObject $range; Release-ComObject $shape; Release-ComObject $slide
+        }
+        "set_z_order" {
+          $actions = @{ bringToFront = 0; sendToBack = 1; bringForward = 2; sendBackward = 3 }
+          $name = [string]$operation.action
+          if (-not $actions.ContainsKey($name)) { throw "Unsupported z-order action: $name" }
+          $slide = $presentation.Slides.Item([int]$operation.slide)
+          $selector = if ($operation.shape -is [string]) { [string]$operation.shape } else { [int]$operation.shape }
+          $shape = $slide.Shapes.Item($selector)
+          $shape.ZOrder([int]$actions[$name])
+          $results += @{ op = $op; slide = [int]$slide.SlideIndex; shape = [string]$shape.Name; action = $name; zOrderPosition = [int]$shape.ZOrderPosition }
+          Release-ComObject $shape; Release-ComObject $slide
+        }
         "update_shape" {
           $slide = $presentation.Slides.Item([int]$operation.slide)
           $shape = $slide.Shapes.Item([string]$operation.name)
@@ -784,6 +824,8 @@ function Invoke-PowerPointBatch($Request) {
           if ($null -ne $operation.PSObject.Properties["fontColor"]) { $shape.TextFrame.TextRange.Font.Color.RGB = Convert-HexColor ([string]$operation.fontColor) }
           if ($null -ne $operation.PSObject.Properties["altText"]) { $shape.AlternativeText = [string]$operation.altText }
           if ($null -ne $operation.PSObject.Properties["rotation"]) { $shape.Rotation = [double]$operation.rotation }
+          if ($null -ne $operation.PSObject.Properties["fillTransparency"]) { $shape.Fill.Transparency = [double]$operation.fillTransparency }
+          if ($null -ne $operation.PSObject.Properties["lineTransparency"]) { $shape.Line.Transparency = [double]$operation.lineTransparency }
           $results += @{ op = $op; slide = [int]$slide.SlideIndex; shape = [string]$shape.Name }
           Release-ComObject $shape; Release-ComObject $slide
         }
@@ -872,7 +914,7 @@ function Invoke-PowerPointBatch($Request) {
           Release-ComObject $slide
         }
         "set_transition" {
-          $effects = @{ none = 0; cut = 257; fade = 1793; pushLeft = 3853; pushRight = 3854; wipeLeft = 2817; wipeRight = 2819; zoomIn = 3345 }
+          $effects = @{ none = 0; cut = 257; fade = 1793; pushLeft = 3853; pushRight = 3854; wipeLeft = 2817; wipeRight = 2819; zoomIn = 3345; morph = 3954; morphWords = 3955; morphCharacters = 3956 }
           $name = [string]$operation.effect
           if (-not $effects.ContainsKey($name)) { throw "Unsupported slide transition: $name" }
           $slide = $presentation.Slides.Item([int]$operation.slide)
@@ -927,6 +969,25 @@ function Invoke-PowerPointBatch($Request) {
         "render_slides" {
           $presentation.Export([string]$operation.outputDirectory, "PNG", [int](Get-Property $operation "width" 1600), [int](Get-Property $operation "height" 900))
           $results += @{ op = $op; outputDirectory = [string]$operation.outputDirectory; slideCount = [int]$presentation.Slides.Count }
+        }
+        "export_video" {
+          $outputPath = [string]$operation.outputPath
+          $useTimings = [bool](Get-Property $operation "useTimingsAndNarrations" $true)
+          $defaultDuration = [int](Get-Property $operation "defaultSlideDurationSeconds" 5)
+          $resolution = [int](Get-Property $operation "verticalResolution" 1080)
+          $framesPerSecond = [int](Get-Property $operation "framesPerSecond" 30)
+          $quality = [int](Get-Property $operation "quality" 85)
+          $timeoutSeconds = [int](Get-Property $operation "timeoutSeconds" 600)
+          $presentation.CreateVideo($outputPath, $useTimings, $defaultDuration, $resolution, $framesPerSecond, $quality)
+          $startedAt = Get-Date
+          do {
+            Start-Sleep -Milliseconds 250
+            $status = [int]$presentation.CreateVideoStatus
+            if ($status -eq 4) { throw "PowerPoint video export failed: $outputPath" }
+            if (((Get-Date) - $startedAt).TotalSeconds -gt $timeoutSeconds) { throw "PowerPoint video export timed out after $timeoutSeconds seconds: $outputPath" }
+          } while ($status -ne 3)
+          if (-not (Test-Path -LiteralPath $outputPath)) { throw "PowerPoint reported a completed video export but no file was created: $outputPath" }
+          $results += @{ op = $op; path = $outputPath; status = $status; resolution = $resolution; framesPerSecond = $framesPerSecond; quality = $quality }
         }
         default { throw "Unsupported PowerPoint operation: $op" }
       }

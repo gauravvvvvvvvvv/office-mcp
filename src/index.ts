@@ -313,11 +313,31 @@ const powerpointNativeOperationSchema = z.discriminatedUnion("op", [
     left: z.number(), top: z.number(), width: z.number().positive(), height: z.number().positive()
   }),
   z.object({
+    op: z.literal("rename_shape"), slide: z.number().int().positive(),
+    shape: z.union([z.string().min(1), z.number().int().positive()]).describe("Current shape name or 1-based index from list_shapes"),
+    name: z.string().min(1).max(255).describe("New unique name. Prefix with !! to force Morph matching across slides.")
+  }),
+  z.object({
+    op: z.literal("group_shapes"), slide: z.number().int().positive(),
+    shapes: z.array(z.union([z.string().min(1), z.number().int().positive()])).min(2),
+    name: z.string().min(1).max(255).optional()
+  }),
+  z.object({
+    op: z.literal("ungroup_shape"), slide: z.number().int().positive(),
+    shape: z.union([z.string().min(1), z.number().int().positive()])
+  }),
+  z.object({
+    op: z.literal("set_z_order"), slide: z.number().int().positive(),
+    shape: z.union([z.string().min(1), z.number().int().positive()]),
+    action: z.enum(["bringToFront", "bringForward", "sendBackward", "sendToBack"])
+  }),
+  z.object({
     op: z.literal("update_shape"), slide: z.number().int().positive(), name: z.string(),
     left: z.number().optional(), top: z.number().optional(), width: z.number().positive().optional(), height: z.number().positive().optional(),
     text: z.string().optional(), fillColor: z.string().optional(), lineColor: z.string().optional(),
     fontSize: z.number().positive().optional(), fontColor: z.string().optional(), altText: z.string().optional(),
-    rotation: z.number().min(-360).max(360).optional()
+    rotation: z.number().min(-360).max(360).optional(),
+    fillTransparency: z.number().min(0).max(1).optional(), lineTransparency: z.number().min(0).max(1).optional()
   }),
   z.object({ op: z.literal("set_speaker_notes"), slide: z.number().int().positive(), text: z.string() }),
   z.object({
@@ -347,7 +367,7 @@ const powerpointNativeOperationSchema = z.discriminatedUnion("op", [
   z.object({
     op: z.literal("set_transition"),
     slide: z.number().int().positive(),
-    effect: z.enum(["none", "cut", "fade", "pushLeft", "pushRight", "wipeLeft", "wipeRight", "zoomIn"]),
+    effect: z.enum(["none", "cut", "fade", "pushLeft", "pushRight", "wipeLeft", "wipeRight", "zoomIn", "morph", "morphWords", "morphCharacters"]),
     durationSeconds: z.number().min(0.1).max(10).optional(),
     advanceOnClick: z.boolean().optional().default(true),
     advanceAfterSeconds: z.number().min(0.1).max(3600).optional()
@@ -359,6 +379,15 @@ const powerpointNativeOperationSchema = z.discriminatedUnion("op", [
   z.object({
     op: z.literal("render_slides"), outputDirectory: filePath,
     width: z.number().int().positive().optional(), height: z.number().int().positive().optional()
+  }),
+  z.object({
+    op: z.literal("export_video"), outputPath: filePath,
+    useTimingsAndNarrations: z.boolean().optional().default(true),
+    defaultSlideDurationSeconds: z.number().int().min(1).max(60).optional().default(5),
+    verticalResolution: z.enum(["480", "720", "1080", "2160"]).optional().default("1080"),
+    framesPerSecond: z.number().int().min(12).max(60).optional().default(30),
+    quality: z.number().int().min(1).max(100).optional().default(85),
+    timeoutSeconds: z.number().int().min(30).max(900).optional().default(600)
   })
 ]);
 
@@ -951,7 +980,7 @@ serveStdio(() => {
   server.registerTool(
     "powerpoint_native_batch",
     {
-      description: "Execute an ordered batch through real Microsoft PowerPoint. Supports active or closed presentations, slide and shape editing, object animations, slide transitions, PDF export, and PNG rendering. Use list_shapes before add_animation; static PNG renders cannot show motion. Native coordinates are points.",
+      description: "Execute an ordered batch through real Microsoft PowerPoint. Supports active or closed presentations, slide and shape editing, grouping and z-order, object animations, true Morph transitions, PDF/video export, and PNG rendering. Use list_shapes before targeting shapes. Prefix paired object names with !! for deterministic Morph matching. Native coordinates are points.",
       inputSchema: z.object({
         target: nativeTargetSchema,
         operations: z.array(powerpointNativeOperationSchema).min(1),

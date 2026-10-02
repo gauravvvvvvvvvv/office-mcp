@@ -58,8 +58,9 @@ export async function capabilities() {
         designedLayouts: ["cover", "imageText", "statement", "comparison", "panorama"],
         designedStyles: ["editorial", "cinematic"],
         nativeAnimation: {
-          operations: ["list_shapes", "list_animations", "add_animation", "update_animation", "move_animation", "delete_animation", "clear_animations", "set_transition", "add_media"],
+          operations: ["list_shapes", "rename_shape", "group_shapes", "ungroup_shape", "set_z_order", "update_shape", "list_animations", "add_animation", "update_animation", "move_animation", "delete_animation", "clear_animations", "set_transition", "add_media", "export_video"],
           effects: ["appear", "fade", "fly", "wipe", "zoom", "spin", "growShrink"],
+          transitions: ["none", "cut", "fade", "pushLeft", "pushRight", "wipeLeft", "wipeRight", "zoomIn", "morph", "morphWords", "morphCharacters"],
           triggers: ["onClick", "withPrevious", "afterPrevious"]
         }
       }

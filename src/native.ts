@@ -103,7 +103,11 @@ async function secureBatchPaths(application: Application, request: NativeBatchRe
         : [".png", ".jpg", ".jpeg", ".gif", ".svg", ".emf"]);
     }
     if (typeof operation.outputPath === "string") {
-      const extensions = operation.op === "export_pdf" ? [".pdf"] : extensionByApplication[application];
+      const extensions = operation.op === "export_pdf"
+        ? [".pdf"]
+        : operation.op === "export_video"
+          ? [".mp4", ".wmv"]
+          : extensionByApplication[application];
       operation.outputPath = await prepareOutputPath(operation.outputPath, extensions, request.overwrite ?? false);
     }
     if (typeof operation.outputDirectory === "string") {
@@ -126,7 +130,11 @@ export async function listOpenOfficeFiles() {
 
 export async function runNativeBatch(application: Application, request: NativeBatchRequest) {
   const secured = await secureBatchPaths(application, request);
-  return runBridge(`${application}-batch` as BridgeCommand, secured);
+  const videoOperation = secured.operations.find((operation) => operation.op === "export_video");
+  const timeoutMs = videoOperation
+    ? Math.max(180000, Number(videoOperation.timeoutSeconds ?? 600) * 1000 + 30000)
+    : 180000;
+  return runBridge(`${application}-batch` as BridgeCommand, secured, timeoutMs);
 }
 
 export async function renderPowerPointNative(
