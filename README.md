@@ -14,9 +14,9 @@ The server does not decide what a report, model, or presentation should say. The
 
 The 10-slide *Inside an AI Agent* deck uses native Morph transitions and timed animations. Every slide was rendered and reviewed through Office MCP before the video export.
 
-[![Watch the Inside an AI Agent video](examples/inside-an-ai-agent-preview.gif)](examples/inside-an-ai-agent.mp4)
+[![Download the Inside an AI Agent video](examples/inside-an-ai-agent-preview.gif)](https://raw.githubusercontent.com/gauravvvvvvvvvv/office-mcp/main/examples/inside-an-ai-agent.mp4)
 
-[Watch or download the MP4](examples/inside-an-ai-agent.mp4) · [Download the editable PowerPoint](examples/inside-an-ai-agent.pptx)
+[Download the full MP4](https://raw.githubusercontent.com/gauravvvvvvvvvv/office-mcp/main/examples/inside-an-ai-agent.mp4) · [Download the editable PowerPoint](examples/inside-an-ai-agent.pptx)
 
 ## Quick start (Windows PowerShell)
 
