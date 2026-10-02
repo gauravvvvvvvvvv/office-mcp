@@ -27,6 +27,8 @@ Provide meaningful image alt text when an image conveys information; the audit f
 
 For requested animations or transitions on Windows with desktop PowerPoint, use `powerpoint_native_batch`. Call `list_shapes` to obtain stable shape names, then `add_animation` or `set_transition`, save the deck, reopen it, and call `list_animations` to verify persistence. Use restrained motion that clarifies sequence or emphasis. The portable creation tools do not add animations. Static PNG renders do not show animation playback, so never claim to have visually verified motion from those images alone.
 
+For cinematic Morph, camera-like pans or zooms, persistent objects, or a motion preview, also use the `office-morph-storytelling` skill.
+
 ## Validate the result
 
 Call `powerpoint_audit_presentation` for structural review flags, then `powerpoint_render_presentation` and inspect every returned slide image at presentation size. Check legibility, cropping, alignment, contrast, hierarchy, content clarity, and whether the deck looks repetitive or generic. Correct visible issues and render again. The audit is heuristic, and a render call without reviewing the images is not validation. If the result remains weak, say so and ask for a reference or design direction rather than calling it polished.
