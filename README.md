@@ -1,50 +1,62 @@
 # Office MCP
 
-A Windows-first Model Context Protocol server for Microsoft Excel, Word, and PowerPoint files and applications.
+A Windows-first Model Context Protocol server that gives AI agents deterministic, reviewable control over Microsoft Excel, Word, and PowerPoint.
 
 This is an independent open-source project and is not affiliated with or endorsed by Microsoft.
 
-Office MCP gives an orchestrating AI deterministic handles for Microsoft Office. It works directly with `.xlsx`, `.docx`, and `.pptx` packages and can use the real installed Excel, Word, and PowerPoint applications on Windows for full-fidelity editing, calculation, charts, PivotTables, PDF export, animation, and slide rendering. It runs locally over stdio and requires no API key. The supported release target is Windows; macOS and Linux are currently out of scope.
+Office MCP gives an orchestrating AI deterministic handles for Microsoft Office and a review pipeline that can verify the exact draft before delivery. It works directly with `.xlsx`, `.docx`, and `.pptx` packages and can use the real installed Excel, Word, and PowerPoint applications on Windows for full-fidelity editing, calculation, charts, PivotTables, PDF export, animation, and slide rendering. It runs locally over stdio, requires no API key, and keeps file access bounded to configured roots. The supported release target is Windows; macOS and Linux are currently out of scope.
 
 The server does not decide what a report, model, or presentation should say. The model plans the work and calls these tools to inspect inputs, construct the documents, render the result, visually review it, and iterate.
 
 ## Quick start (Windows PowerShell)
 
-You need [Node.js 20+](https://nodejs.org/), Git, and an MCP client such as Codex/ChatGPT desktop or Claude Code. Desktop Microsoft Office is **optional** for basic `.xlsx`, `.docx`, and `.pptx` file creation; it is required for Windows-native features such as animations and PowerPoint rendering. This repository is not yet published on npm.
+You need [Node.js 20+](https://nodejs.org/) and an MCP client such as Codex/ChatGPT desktop or Claude Code. Desktop Microsoft Office is **optional** for basic `.xlsx`, `.docx`, and `.pptx` file creation; it is required for Windows-native features such as animations and PowerPoint rendering.
 
-1. Download and build the server:
+The package is published on npm as [`@parryhotter/office-mcp`](https://www.npmjs.com/package/@parryhotter/office-mcp).
+
+1. Choose which files the AI may access. This example allows your Documents folder; change `$allowed` to a narrower folder if you prefer:
 
    ```powershell
-   git clone https://github.com/gauravvvvvvvvvv/office-mcp.git
-   Set-Location office-mcp
-   npm ci
-   npm run build
+   $allowed = ([Environment]::GetFolderPath('MyDocuments'))
    ```
 
-2. In the **same PowerShell window**, choose which files the AI may access and connect **one** client. This example allows your Documents folder; change `$allowed` to a narrower folder if you prefer:
+2. Connect **one** client.
+
+   For **Codex CLI or ChatGPT desktop**:
 
    ```powershell
-   $entry = (Resolve-Path .\dist\index.js).Path
-   $allowed = (Resolve-Path ([Environment]::GetFolderPath('MyDocuments'))).Path
-   ```
-
-   For **Codex CLI or ChatGPT desktop**, run:
-
-   ```powershell
-   codex mcp add office --env "OFFICE_MCP_ROOTS=$allowed" -- node $entry
+   codex mcp add office --env "OFFICE_MCP_ROOTS=$allowed" -- npx -y @parryhotter/office-mcp
    codex mcp list
    ```
 
-   For **Claude Code**, run instead:
+   For **Claude Code**:
 
    ```powershell
-   claude mcp add --scope user --env "OFFICE_MCP_ROOTS=$allowed" --transport stdio office -- node $entry
+   claude mcp add --scope user --env "OFFICE_MCP_ROOTS=$allowed" --transport stdio office -- npx -y @parryhotter/office-mcp
    claude mcp get office
    ```
 
-3. Restart an already-open desktop client or start a new chat. Ask: “Call `office_capabilities` and tell me which Office features are available.” Then try: “Use `powerpoint_create_designed_presentation` to create a two-slide presentation in my Documents folder, inspect it, and report the saved path.” The server runs when the client launches it; do **not** start `node dist/index.js` in a separate terminal.
+3. Restart an already-open desktop client or start a new chat. Ask: “Call `office_capabilities` and tell me which Office features are available.” Then try: “Use `powerpoint_create_designed_presentation` to create a two-slide presentation in my Documents folder, inspect it, and report the saved path.”
 
-If you use both clients, run both registration commands. Existing `office` entries should be checked before re-adding them; `codex mcp list` and `claude mcp get office` show what is already configured. The checkout must remain at this path, because the clients launch its compiled `dist/index.js`. See [supported clients](#supported-clients) or [troubleshooting](#installation-troubleshooting) below.
+The client launches Office MCP when needed; do **not** start a second server process in a separate terminal. If you use both clients, register it in both. Existing `office` entries should be checked before re-adding them.
+
+### Install from source
+
+For development, contribution, or testing an unreleased commit:
+
+```powershell
+git clone https://github.com/gauravvvvvvvvvv/office-mcp.git
+Set-Location office-mcp
+npm ci
+npm run build
+
+$entry = (Resolve-Path .\dist\index.js).Path
+$allowed = ([Environment]::GetFolderPath('MyDocuments'))
+
+# Pick one client:
+codex mcp add office --env "OFFICE_MCP_ROOTS=$allowed" -- node $entry
+# claude mcp add --scope user --env "OFFICE_MCP_ROOTS=$allowed" --transport stdio office -- node $entry
+```
 
 ## Why this server
 
@@ -254,7 +266,7 @@ The process waits silently for MCP messages on standard input. Do not write logs
 
 This repository has no GitHub Actions workflows or Dependabot configuration. Nothing runs automatically on pushes or pull requests, and pushing a tag does not create a release or publish to npm. It is a local stdio server, not a hosted Office service.
 
-Before making a public release manually, update `package.json` and the lockfile; run `npm run check` and `npm run smoke`; and, on Windows with desktop Office, run `npm run test:native`. Verify a fresh packaged install and audit the bundled dependencies. Then decide whether to create a GitHub Release and attach the tested package. See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md). No npm publication is currently configured.
+The public npm package is `@parryhotter/office-mcp`. Releases are currently published manually. Before publishing a new version, update `package.json` and the lockfile; run `npm run check` and `npm run smoke`; and, on Windows with desktop Office, run `npm run test:native`. Verify a fresh packaged install and audit the bundled dependencies before running `npm publish --access public`. Then create the matching GitHub Release if desired. See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
 
 Project layout:
 
