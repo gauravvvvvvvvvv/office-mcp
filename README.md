@@ -1,7 +1,5 @@
 # Office MCP
 
-[![Sponsor on GitHub](https://img.shields.io/github/sponsors/gauravvvvvvvvvv?label=Sponsor&logo=githubsponsors)](https://github.com/sponsors/gauravvvvvvvvvv)
-
 A Windows-first Model Context Protocol server that gives AI agents deterministic, reviewable control over Microsoft Excel, Word, and PowerPoint.
 
 This is an independent open-source project and is not affiliated with or endorsed by Microsoft.
@@ -276,25 +274,8 @@ The process waits silently for MCP messages on standard input. Do not write logs
 
 This repository has no GitHub Actions workflows or Dependabot configuration. Nothing runs automatically on pushes or pull requests, and pushing a tag does not create a release or publish to npm. It is a local stdio server, not a hosted Office service.
 
-The public npm package is `@parryhotter/office-mcp`. Releases are currently published manually. Before publishing a new version, update `package.json` and the lockfile; run `npm run check` and `npm run smoke`; and, on Windows with desktop Office, run `npm run test:native`. Verify a fresh packaged install and audit the bundled dependencies before running `npm publish --access public`. Then create the matching GitHub Release if desired. See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
+The public npm package is `@parryhotter/office-mcp`. Releases are currently published manually. Before publishing a new version, update `package.json` and the lockfile; run `npm run check` and `npm run smoke`; and, on Windows with desktop Office, run `npm run test:native`. Verify a fresh packaged install and audit the bundled dependencies before running `npm publish --access public`. Create a matching GitHub Release when publishing a public version. See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
 
-Project layout:
-
-```text
-src/
-  index.ts          MCP tool registration and schemas
-  office.ts         Cross-format inspection and PDF conversion
-  excel.ts          XLSX adapter
-  word.ts           DOCX adapter
-  powerpoint.ts     PPTX adapter
-  paths.ts          Allowed-root enforcement
-  errors.ts         Structured MCP results and errors
-  native.ts         Secure Node-to-native-Office bridge
-native/
-  office-bridge.ps1 Excel, Word, and PowerPoint COM automation
-tests/
-  office.test.ts    End-to-end file tests
-```
 
 ## Important limitations
 
