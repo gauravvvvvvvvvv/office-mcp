@@ -1,12 +1,23 @@
 # Office MCP
 
-A Windows-first Model Context Protocol server that gives AI agents deterministic, reviewable control over Microsoft Excel, Word, and PowerPoint.
+[![npm version](https://img.shields.io/npm/v/%40parryhotter%2Foffice-mcp?logo=npm)](https://www.npmjs.com/package/@parryhotter/office-mcp)
+[![npm downloads](https://img.shields.io/npm/dm/%40parryhotter%2Foffice-mcp?logo=npm)](https://www.npmjs.com/package/@parryhotter/office-mcp)
+[![MIT license](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
+![Windows](https://img.shields.io/badge/platform-Windows-0078D4?logo=windows11)
+![Node.js 20+](https://img.shields.io/badge/Node.js-20%2B-339933?logo=node.js&logoColor=white)
+
+**Give AI agents safe, local control over Microsoft Excel, Word, and PowerPoint on Windows.**
+
+Create, inspect, edit, analyze, animate, render, and verify Office files through MCP—with access restricted to folders you approve.
 
 This is an independent open-source project and is not affiliated with or endorsed by Microsoft.
 
 Office MCP gives an orchestrating AI deterministic handles for Microsoft Office and a review pipeline that can verify the exact draft before delivery. It works directly with `.xlsx`, `.docx`, and `.pptx` packages and can use the real installed Excel, Word, and PowerPoint applications on Windows for full-fidelity editing, calculation, charts, PivotTables, PDF export, animation, and slide rendering. It runs locally over stdio, requires no API key, and keeps file access bounded to configured roots. The supported release target is Windows; macOS and Linux are currently out of scope.
 
 The server does not decide what a report, model, or presentation should say. The model plans the work and calls these tools to inspect inputs, construct the documents, render the result, visually review it, and iterate.
+
+> [!IMPORTANT]
+> **Your files stay local and access is bounded.** `OFFICE_MCP_ROOTS` defines the only directories the server may read or write. Point it at the narrowest folder that contains the documents you want the agent to use; paths outside those roots are rejected.
 
 ## Made with Office MCP
 
@@ -47,6 +58,118 @@ The package is published on npm as [`@parryhotter/office-mcp`](https://www.npmjs
 3. Restart an already-open desktop client or start a new chat. Ask: “Call `office_capabilities` and tell me which Office features are available.” Then try: “Use `powerpoint_create_designed_presentation` to create a two-slide presentation in my Documents folder, inspect it, and report the saved path.”
 
 The client launches Office MCP when needed; do **not** start a second server process in a separate terminal. If you use both clients, register it in both. Existing `office` entries should be checked before re-adding them.
+
+### Copy-paste client configurations
+
+Replace `C:\\Users\\you\\Documents` with the narrowest folder the agent should access. Fully restart the client after saving its configuration.
+
+<details>
+<summary><strong>Claude Desktop</strong></summary>
+
+Edit `%APPDATA%\Claude\claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "office": {
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "@parryhotter/office-mcp"],
+      "env": {
+        "OFFICE_MCP_ROOTS": "C:\\Users\\you\\Documents"
+      }
+    }
+  }
+}
+```
+
+</details>
+
+<details>
+<summary><strong>Cursor</strong></summary>
+
+Edit `%USERPROFILE%\.cursor\mcp.json` for all projects, or `.cursor\mcp.json` inside one project:
+
+```json
+{
+  "mcpServers": {
+    "office": {
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "@parryhotter/office-mcp"],
+      "env": {
+        "OFFICE_MCP_ROOTS": "C:\\Users\\you\\Documents"
+      }
+    }
+  }
+}
+```
+
+</details>
+
+<details>
+<summary><strong>Windsurf</strong></summary>
+
+Edit `%USERPROFILE%\.codeium\windsurf\mcp_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "office": {
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "@parryhotter/office-mcp"],
+      "env": {
+        "OFFICE_MCP_ROOTS": "C:\\Users\\you\\Documents"
+      }
+    }
+  }
+}
+```
+
+</details>
+
+<details>
+<summary><strong>VS Code with GitHub Copilot</strong></summary>
+
+Create `.vscode\mcp.json` in a workspace, or run **MCP: Open User Configuration** from the Command Palette:
+
+```json
+{
+  "servers": {
+    "office": {
+      "type": "stdio",
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "@parryhotter/office-mcp"],
+      "env": {
+        "OFFICE_MCP_ROOTS": "C:\\Users\\you\\Documents"
+      }
+    }
+  }
+}
+```
+
+</details>
+
+<details>
+<summary><strong>Generic Windows stdio client</strong></summary>
+
+Use this shape when the client accepts standard MCP JSON:
+
+```json
+{
+  "mcpServers": {
+    "office": {
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "@parryhotter/office-mcp"],
+      "env": {
+        "OFFICE_MCP_ROOTS": "C:\\Users\\you\\Documents"
+      }
+    }
+  }
+}
+```
+
+</details>
+
+Configuration formats: [Claude Desktop](https://modelcontextprotocol.io/docs/develop/connect-local-servers) · [Cursor](https://docs.cursor.com/context/model-context-protocol) · [VS Code/Copilot](https://code.visualstudio.com/docs/agents/reference/mcp-configuration). Windsurf uses the same `mcpServers` structure at the configuration path listed above.
 
 ### Install from source
 
@@ -279,7 +402,7 @@ The public npm package is `@parryhotter/office-mcp`. Releases are currently publ
 
 ## Important limitations
 
-- Native active-document control currently requires Windows and installed desktop Microsoft Office. A future Office.js bridge is required for the same live control on Mac, web, and iPad.
+- Native active-document control requires Windows and installed desktop Microsoft Office. Other operating systems are outside the current release scope.
 - ExcelJS does not support every Excel feature. Re-saving complex workbooks may not preserve unsupported objects such as embedded charts or VBA projects. Prefer a separate `outputPath` when editing valuable files.
 - Word and PowerPoint replacement can match text split across formatting runs. When a replacement crosses multiple runs, it consolidates the replacement into the first run, so mixed character formatting inside that phrase is not retained.
 - PowerPoint creation is declarative. Positions and sizes use inches, matching PptxGenJS conventions.
